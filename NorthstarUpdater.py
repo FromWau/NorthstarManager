@@ -250,7 +250,7 @@ def main():
         time.sleep(60)
 
     print(f"\nLaunching {config.get('Launcher', 'filename')} {config.get('Launcher', 'arguments').split(' ')} {sys.argv[1:]}")
-    # launcher()
+    launcher()
 
 
 def updater() -> bool:
