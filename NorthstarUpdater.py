@@ -15,6 +15,10 @@ from github.GithubException import RateLimitExceededException
 from tqdm import tqdm
 
 config = configparser.ConfigParser()
+g = Github()
+
+print("Reading Config from 'updater_config.ini'...")
+config.read("updater_config.ini")
 if len(config.sections()) == 0:
     print("'updater_config.ini' is empty, loading default config instead...")
     config["Northstar"] = {
@@ -26,7 +30,7 @@ if len(config.sections()) == 0:
         "exclude_files": "ns_startup_args.txt|ns_startup_args_dedi.txt",
     }
     config["NorthstarUpdater"] = {
-        "repository": "laundmo/northstar-updater",
+        "repository": "Frommhund/Northstar_Updater",
         "last_update": "0001-01-01T00:00:00",
         "ignore_prerelease": "true",
         "file": "NorthstarUpdater.exe",
@@ -41,11 +45,6 @@ if len(config.sections()) == 0:
         "filename": "NorthstarLauncher.exe",
         "arguments": "-multiple"
     }
-else:
-    print("Reading Config from 'updater_config.ini'...")
-    config.read("updater_config.ini")
-
-g = Github()
 
 
 def download(url, download_file):
@@ -249,7 +248,9 @@ def main():
         print(f"Waiting and restarting Updater in 60s...")
         time.sleep(60)
 
-    print(f"\nLaunching {config.get('Launcher', 'filename')} {config.get('Launcher', 'arguments').split(' ')} {sys.argv[1:]}")
+    print(f"\nLaunching {config.get('Launcher', 'filename')} "
+          f"{config.get('Launcher', 'arguments')} "
+          f"{''.join(sys.argv[1:])}")
     launcher()
 
 
@@ -264,7 +265,7 @@ def updater() -> bool:
                 else:
                     u = Updater(section)
                     u.run()
-        except RateLimitExceededException as e:
+        except RateLimitExceededException:
             print(f"GitHub Rate exceeded {g.rate_limiting} for {section.title()}")
             inp = input("Launch Northstar without checking updates? (y/n) ")
             if inp != "n":
