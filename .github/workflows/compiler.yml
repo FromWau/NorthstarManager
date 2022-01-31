@@ -6,10 +6,10 @@ on:
 name: Release Builder  
 jobs:
   builder:
-    name: compile py to exe
+    name: Compile for new Release
     runs-on: windows-latest
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v2   
         
       - name: Setup Python  
@@ -20,19 +20,27 @@ jobs:
       - name: Install Python dependencies
         run: python -m pip install nuitka tqdm
         
-      - name: Run nuitka
+      - name: Build Release Assets
         run: python -m nuitka --enable-plugin=anti-bloat --include-module=tqdm --windows-icon-from-ico=ns_icon_pink.ico NorthstarUpdater.py
       
       - name: Create Release 
         id: create_release
-        uses: svenstaro/upload-release-action@v2
+        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref }}
           release_name: Release ${{ github.ref }}
-          file: NorthstarUpdater.exe
-          asset_name: NorthstarUpdater.exe
-          tag: ${{ github.ref }}
           draft: false
           prerelease: false
+      
+      - name: Upload Binary
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          file: NorthstarUpdater.exe
+          asset_name: NorthstarUpdater.exe
+          overwrite: true
+      
