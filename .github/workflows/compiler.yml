@@ -1,0 +1,18 @@
+name: compiler
+on:
+  push:
+    branches:
+    - release/*
+  workflow_dispatch:
+jobs:
+  builder:
+    name: run on release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2   
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.10.2
+      - run: python -m pip install nuitka tqdm
+      - run: python -m nuitka --standalone --enable-plugin=anti-bloat --include-module=tqdm --windows-icon-from-ico=ns_icon_pink.ico NorthstarUpdater.py
+      
