@@ -17,7 +17,7 @@ from tqdm import tqdm
 config = configparser.ConfigParser()
 g = Github()
 
-print("Reading Config from 'updater_config.ini'...")
+print("Reading config from 'updater_config.ini'...")
 config.read("updater_config.ini")
 if len(config.sections()) == 0:
     print("'updater_config.ini' is empty, loading default config instead...")
@@ -30,7 +30,7 @@ if len(config.sections()) == 0:
         "exclude_files": "ns_startup_args.txt|ns_startup_args_dedi.txt",
     }
     config["NorthstarUpdater"] = {
-        "repository": "Frommhund/Northstar_Updater",
+        "repository": "FromWau/Northstar_Updater",
         "last_update": "0001-01-01T00:00:00",
         "ignore_prerelease": "true",
         "file": "NorthstarUpdater.exe",
@@ -122,10 +122,12 @@ class Updater:
             break  # stop search wenn aktuellere Version vorhanden ist
         raise NoValidRelease("No new release found")
 
+    # find a way to not download release files
     def asset(self, release: GitRelease):
-        print(f"Started updater for {self.blockname} published from {release.published_at}")
-        assets = release.get_assets()
+        print(f"Started updater   for {self.blockname} published from {release.published_at}")
+        assets = release.get_assets()  # asset must be a release binary or else wont get fetched
         for asset in assets:
+            print(f"{asset.name} {asset.content_type}")
             if asset.content_type in (
                     "application/zip",
                     "application/x-zip-compressed",
@@ -148,9 +150,7 @@ class Updater:
                 strip = len(parts)
                 if fp.parts[:strip] == parts:
                     new_fp = Path(*fp.parts[strip:])
-                    fileinfo.filename = str(new_fp) + (
-                        "/" if fileinfo.filename.endswith("/") else ""
-                    )
+                    fileinfo.filename = str(new_fp) + ("/" if fileinfo.filename.endswith("/") else "")
                     zip_.extract(fileinfo, self.install_dir)
         elif found:
             for fileinfo in zip_.infolist():
@@ -166,9 +166,12 @@ class Updater:
             for file_ in namelist:
                 if file_ not in self.exclude_files:
                     zip_.extract(file_, self.install_dir)
+                else:
+                    if not Path(file_).exists():  # check for first time install of excluded files
+                        zip_.extract(file_, self.install_dir)
         else:
             for zip_info in zip_.infolist():
-                zip_info.filename
+                print(zip_info.filename)
             raise FileNotInZip(f"{self._file} not found in the selected release zip.")
 
     def extract(self, zip_: zipfile.ZipFile):
@@ -213,7 +216,7 @@ class SelfUpdater(Updater):
         raise NoValidRelease("No new release found")
 
     def asset(self, release: GitRelease):
-        print(f"Started updater for {self.blockname} published from {release.published_at}")
+        print(f"Started updater   for {self.blockname} published from {release.published_at}")
         assets = release.get_assets()
         for asset in assets:
             if asset.content_type in ("application/x-msdownload",):
@@ -243,6 +246,7 @@ class SelfUpdater(Updater):
 
 
 def main():
+    print("testing build workflow.")
     # restart for github rate error
     while not updater():
         print(f"Waiting and restarting Updater in 60s...")
@@ -251,14 +255,22 @@ def main():
     print(f"\nLaunching {config.get('Launcher', 'filename')} "
           f"{config.get('Launcher', 'arguments')} "
           f"{''.join(sys.argv[1:])}")
-    launcher()
+
+
+    # downgrade for testing a mod with mod.json
+    config["DummyTF2Mod"] = {
+        "repository": "FromWau/DummyTF2Mod",
+        "last_update": "0001-01-01T00:00:00"
+    }
+    # Path("./NorthstarLauncher.exe").unlink()
+    # launcher()
 
 
 def updater() -> bool:
     for section in config.sections():
         try:
             if section not in ("Launcher", "ExampleMod"):
-                print(f"Started Searching for {section}...")
+                print(f"Started searching for {section}...")
                 if section == "NorthstarUpdater":
                     u = SelfUpdater(section)
                     u.run()
@@ -266,8 +278,9 @@ def updater() -> bool:
                     u = Updater(section)
                     u.run()
         except RateLimitExceededException:
-            print(f"GitHub Rate exceeded {g.rate_limiting} for {section.title()}")
-            inp = input("Launch Northstar without checking updates? (y/n) ")
+            print(f"GitHub rate exceeded for {section.title()}. "
+                  f"Available requests left {g.rate_limiting[0]}/{g.rate_limiting[1]}.")
+            inp = input("Launch Northstar without checking for updates? (y/n) ")
             if inp != "n":
                 break
             return False
