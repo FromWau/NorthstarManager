@@ -1,0 +1,1 @@
+print("Dummy exe for NS Launcher.")
