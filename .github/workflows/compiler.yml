@@ -38,7 +38,7 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/NorthstarUpdater.exe
+          file: NorthstarUpdater.exe
           asset_name: NorthstarUpdater.exe
           tag: ${{ github.ref }}
           overwrite: true
