@@ -1,4 +1,0 @@
-bump2version
-fbs
-requests
-PyQt5==5.15.0
