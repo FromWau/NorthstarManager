@@ -10,37 +10,25 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v2   
-        
+        uses: actions/checkout@v2        
       - name: Setup Python  
         uses: actions/setup-python@v2
         with:
-          python-version: 3.x
-          
+          python-version: 3.6
       - name: Install Python dependencies
-        run: python -m pip install nuitka tqdm
-        
-      - name: Build Release Assets
-        run: python -m nuitka --enable-plugin=anti-bloat --include-module=tqdm --windows-icon-from-ico=ns_icon_pink.ico NorthstarUpdater.py
-      
-      - name: Create Release 
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-      
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run fbs and freeze application
+        run: |
+          fbs freeze
+          fbs installer   
       - name: Upload Binary
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          file: NorthstarUpdater.exe
+          file: target/fbs_tutorial_appSetup.exe
           asset_name: NorthstarUpdater.exe
+          tag: ${{ github.ref }}
           overwrite: true
       
