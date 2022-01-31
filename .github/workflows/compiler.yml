@@ -38,7 +38,7 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          tag_name: ${{ github.ref }}
+          tag: ${{ github.ref }}
           release_name: Release ${{ github.ref }}
           file: NorthstarUpdater.exe
           asset_name: NorthstarUpdater.exe
