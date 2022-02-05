@@ -17,23 +17,24 @@ from tqdm import tqdm
 config = configparser.ConfigParser()
 g = Github()
 
-print("Reading config from 'updater_config.ini'...")
+print(f"[{time.strftime('%H:%M:%S')}] [info]    Reading config from 'updater_config.ini'...")
 config.read("updater_config.ini")
 if len(config.sections()) == 0:
-    print("'updater_config.ini' is empty, loading default config instead...")
+    print(f"[{time.strftime('%H:%M:%S')}] [warning] 'updater_config.ini' is empty or does not exist")
+    print(f"[{time.strftime('%H:%M:%S')}] [info]    Using default config instead")
     config["Northstar"] = {
         "repository": "R2Northstar/Northstar",
-        "last_update": "2021-12-29T05:14:32",
+        "last_update": "0001-01-01T00:00:00",
         "ignore_prerelease": "true",
         "file": "NorthstarLauncher.exe",
         "install_dir": ".",
         "exclude_files": "ns_startup_args.txt|ns_startup_args_dedi.txt",
     }
-    config["NorthstarUpdater"] = {
-        "repository": "FromWau/Northstar_Updater",
+    config["NorthstarManager"] = {
+        "repository": "FromWau/NorthstarManager",
         "last_update": "0001-01-01T00:00:00",
         "ignore_prerelease": "true",
-        "file": "NorthstarUpdater.exe",
+        "file": "NorthstarManager.exe",
         "install_dir": ".",
         "exclude_files": "",
     }
@@ -43,7 +44,13 @@ if len(config.sections()) == 0:
     }
     config["Launcher"] = {
         "filename": "NorthstarLauncher.exe",
-        "arguments": "-multiple"
+        "arguments": "-multiple",
+    }
+    config["SkinTool"] = {
+        "repository": "zxcPandora/Titanfall2-SkinTool",
+        "last_update": "0001-01-01T00:00:00",
+        "ignore_prerelease": "true",
+        "install_dir": "."
     }
 
 
@@ -120,13 +127,13 @@ class Updater:
                 if not self.file.exists() or self._file != "NorthstarLauncher.exe":
                     return release
             break  # stop search wenn aktuellere Version vorhanden ist
-        raise NoValidRelease("No new release found")
+        raise NoValidRelease("Found No new releases")
 
     def asset(self, release: GitRelease) -> str:
-        print(f"Started updater   for {self.blockname} published from {release.published_at}")
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    Updating to   new release  for {self.blockname} published Version {release.tag_name}")
         assets = release.get_assets()
 
-        if assets.totalCount == 0:     # if no application release exists try download source direct.
+        if assets.totalCount == 0:  # if no application release exists try download source direct.
             return release.zipball_url
         else:
             for asset in assets:
@@ -157,7 +164,7 @@ class Updater:
         elif found:
             for fileinfo in zip_.infolist():
                 if zip_.filename:
-                    fp = Path(Path(zip_.filename).stem) / fileinfo.filename
+                    Path(Path(zip_.filename).stem) / fileinfo.filename
                     zip_.extract(fileinfo, self.install_dir)
         else:
             raise FileNotInZip(f"mod.json not found in the selected release zip.")
@@ -187,17 +194,17 @@ class Updater:
             release = self.release()
             url = self.asset(release)
         except NoValidRelease:
-            print("No new release found")
+            print(f"[{time.strftime('%H:%M:%S')}] [info]    Found no      new releases for {self.blockname}")
             return
         except NoValidAsset:
-            print("No matching asset in release, possibly faulty release.")
+            print(f"[{time.strftime('%H:%M:%S')}] [warning] Possibly faulty   release  for {self.blockname} published Version {release.tag_name} has no vali assets")
             return
         with tempfile.NamedTemporaryFile() as download_file:
             download(url, download_file)
             release_zip = zipfile.ZipFile(download_file)
             self.extract(release_zip)
             self.last_update = release.published_at
-            print(f"Updated successfully {self.blockname} to Version {release.tag_name}")
+            print(f"[{time.strftime('%H:%M:%S')}] [info]    Updated successfully           {self.blockname} to        Version {release.tag_name}")
 
 
 class SelfUpdater(Updater):
@@ -206,56 +213,50 @@ class SelfUpdater(Updater):
         for release in releases:
             if release.prerelease and self.ignore_prerelease:
                 continue
-            if update_everything:
-                return release
-            if not self.file.exists():
-                return release
-            if release.published_at > self.last_update:
-                return release
-            if datetime.fromtimestamp(self.file.stat().st_mtime) < release.published_at - timedelta(hours=1):
-                return release
+            if update_everything or \
+                    not self.file.exists() or \
+                    release.published_at > self.last_update or \
+                    datetime.fromtimestamp(self.file.stat().st_mtime) < release.published_at - timedelta(hours=1):
+                try:  # if asset not available contine search
+                    return release, self.asset(release)
+                except NoValidAsset:
+                    continue
 
         raise NoValidRelease("No new release found")
 
     def asset(self, release: GitRelease):
-        print(f"Started updater   for {self.blockname} published from {release.published_at}")
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    Updating to   new release  for {self.blockname} published Version {release.tag_name}")
         assets = release.get_assets()
         for asset in assets:
-            if asset.content_type in ("application/x-msdownload",):
+            if asset.content_type in "application/octet-stream":
                 return asset
         raise NoValidAsset("No valid asset was found in release")
 
     def run(self):
         try:
-            release = self.release()
-            asset = self.asset(release)
+            release, asset = self.release()
         except NoValidRelease:
-            print("No new release found")
+            print(f"[{time.strftime('%H:%M:%S')}] [info]    Found no      new releases for {self.blockname}")
             return
         except NoValidAsset:
-            print("No matching asset in release, possibly faulty release.")
+            print(f"[{time.strftime('%H:%M:%S')}] [warning] Possibly faulty   release  for {self.blockname} published Version {release.tag_name} has no vali assets")
             return
         with tempfile.NamedTemporaryFile(delete=False) as download_file:
             download(asset.browser_download_url, download_file)
 
         newfile: Path = self.file.with_suffix(".new")
         shutil.move(download_file.name, newfile)
-        script = f"timeout 20 && del {self.file} && move {newfile} {self.file}"
+        script = f"timeout 20 && del {self.file} && move {newfile} {self.file} && del {newfile}"
         subprocess.Popen(["cmd", "/c", script])
-        print("Starting timer for self-replacer, please dont interrupt.")
         self.last_update = release.published_at
-        print(f"Updated successfully {self.blockname} to Version {release.tag_name}")
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    Updated successfully           {self.blockname} to        Version {release.tag_name}")
 
 
 def main():
-    # restart for github rate error
-    while not updater():
-        print(f"Waiting and restarting Updater in 60s...")
-        time.sleep(60)
 
-    print(f"\nLaunching {config.get('Launcher', 'filename')} "
-          f"{config.get('Launcher', 'arguments')} "
-          f"{''.join(sys.argv[1:])}")
+    while not updater():  # restart for github rate error
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    Waiting and restarting Updater in 60s...")
+        time.sleep(60)
 
     launcher()
 
@@ -264,35 +265,43 @@ def updater() -> bool:
     for section in config.sections():
         try:
             if section not in ("Launcher", "ExampleMod"):
-                print(f"Started searching for {section}...")
-                if section == "NorthstarUpdater":
+                print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for new Releases for {section}...")
+                if section == "NorthstarManager":
                     u = SelfUpdater(section)
                     u.run()
                 else:
                     u = Updater(section)
                     u.run()
         except RateLimitExceededException:
-            print(f"GitHub rate exceeded for {section.title()}. "
-                  f"Available requests left {g.rate_limiting[0]}/{g.rate_limiting[1]}.")
+            print(f"[{time.strftime('%H:%M:%S')}] [warning] GitHub rate exceeded for {section}.")
+            print(f"[{time.strftime('%H:%M:%S')}] [info]    Available requests left {g.rate_limiting[0]}/{g.rate_limiting[1]}.")
             inp = input("Launch Northstar without checking for updates? (y/n) ")
             if inp != "n":
                 break
             return False
         except FileNotInZip:
-            print(f"Zip file for {section} doesn't contain expected files.")
+            print(f"[{time.strftime('%H:%M:%S')}] [warning] Zip file for {section} doesn't contain expected files.")
     return True
 
 
 def launcher():
     try:
+        action = "./__Installer/Origin/redist/internal/OriginThinSetup.exe"
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching OriginThinClient")
+        subprocess.run([action], cwd=str(Path.cwd()))
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching {config.get('Launcher', 'filename')} "
+              f"{config.get('Launcher', 'arguments')} "
+              f"{''.join(sys.argv[1:])} in 10sec...")
+        time.sleep(10)
+        action = config.get('Launcher', 'filename')
         subprocess.run(
-            [config.get("Launcher", "filename")]
+            [action]
             + config.get("Launcher", "arguments").split(" ")
             + sys.argv[1:],
-            cwd=str(Path.cwd()),
+            cwd=str(Path.cwd())
         )
     except FileNotFoundError:
-        print(f"Could not run {config.get('Launcher', 'filename')}")
+        print(f"[{time.strftime('%H:%M:%S')}] [warning] Could not run {action}")
 
 
 main()

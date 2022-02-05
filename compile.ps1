@@ -1,2 +1,2 @@
-py -m nuitka --standalone --onefile --enable-plugin=anti-bloat --include-module=tqdm --windows-icon-from-ico=ns_icon_pink.ico NorthstarUpdater.py
-Remove-Item .\NorthstarUpdater.onefile-build\,.\NorthstarUpdater.dist\,.\NorthstarUpdater.build\ -Recurse
+py -m nuitka --standalone --onefile --python-flag=-O --enable-plugin=anti-bloat,pylint-warnings --clang --include-module=tqdm --windows-icon-from-ico=ns_icon_pink.ico NorthstarManager.py
+Remove-Item .\NorthstarManager.onefile-build\,.\NorthstarManager.dist\,.\NorthstarManager.build\ -Recurse
