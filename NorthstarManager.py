@@ -14,10 +14,7 @@ from github.GitRelease import GitRelease
 from github.GithubException import RateLimitExceededException
 from tqdm import tqdm
 
-config = configparser.ConfigParser()
-g = Github()
-script_queue = []
-
+config = configparser.ConfigParser(allow_no_value=True)
 print(f"[{time.strftime('%H:%M:%S')}] [info]    Reading config from 'updater_config.ini'...")
 config.read("updater_config.ini")
 if len(config.sections()) == 0:
@@ -25,6 +22,7 @@ if len(config.sections()) == 0:
     print(f"[{time.strftime('%H:%M:%S')}] [info]    Using default config instead")
     config["NorthstarManager"] = {
         "repository": "FromWau/NorthstarManager",
+        "github_token": "",
         "last_update": "0001-01-01T00:00:00",
         "ignore_prerelease": "true",
         "file": "NorthstarManager.exe",
@@ -47,6 +45,15 @@ if len(config.sections()) == 0:
         "filename": "NorthstarLauncher.exe",
         "arguments": "-multiple",
     }
+
+token = config.get("NorthstarManager", "github_token", fallback="")
+if len(token) == 0:
+    g = Github()
+    print(f"[{time.strftime('%H:%M:%S')}] [info]    No configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+else:
+    g = Github(token)
+    print(f"[{time.strftime('%H:%M:%S')}] [info]    Using configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+script_queue = []
 
 
 def download(url, download_file):
@@ -90,12 +97,13 @@ class Updater:
     def __init__(self, blockname):
         self.blockname = blockname
         self.repository = config.get(blockname, "repository")
-        self._file = config.get(self.blockname, "file", fallback="mod.json")
+        self.github_token = config.get(blockname, "github_token", fallback="")
         self.ignore_updates = config.getboolean(blockname, "ignore_updates", fallback=False)
         if self.ignore_updates:
             print(f"[{time.strftime('%H:%M:%S')}] [info]    Search stopped for new releases  for {self.blockname}, ignore_updates flag is set")
             return
         self.ignore_prerelease = config.getboolean(blockname, "ignore_prerelease", fallback=True)
+        self._file = config.get(self.blockname, "file", fallback="mod.json")
         self.repo = g.get_repo(self.repository)
         self.install_dir = Path(config.get(blockname, "install_dir", fallback="./R2Northstar/mods"))
         self.file = (self.install_dir / self._file).resolve()
@@ -250,7 +258,6 @@ class SelfUpdater(Updater):
 
         newfile: Path = self.file.with_suffix(".new")
         shutil.move(download_file.name, newfile)
-        # print(f"[{time.strftime('%H:%M:%S')}] [info]    Running self-replacer            for {self.blockname} to        Version {release.tag_name}")
         self.last_update = release.published_at
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Stopped Updater and rerun new Version of {self.blockname} after install")
 
