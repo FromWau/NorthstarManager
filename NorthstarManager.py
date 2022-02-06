@@ -307,16 +307,16 @@ def main():
     if showhelp:
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Printing help")
         print(
-            "Launch arguments can be set in the 'config_updater.ini'. List of launch arguments:"
-            "-help ................. prints this help"
-            "-update-everything .... updates all repos defined in the 'config_updater.ini' to the latest release regardless of maybe being the latest release, ignoring flags: 'ignore_updates'"
-            "-onlyUpdate ........... only runs the updater without launching the defined launcher in the 'config_updater.ini'"
-            "-onlyLaunch ........... only launches the defined launcher in the 'config_updater.ini', without updating"
-            "-dedicated ............ runs the laucnher as dedicated server"
-            ""
-            "Northstar Client/ vanilla TF2 args should be put into the ns_startup_args.txt or ns_startup_args_dedi.txt for dedicated servers"
-            "All Northstar launch arguments can be found at the official wiki: https://r2northstar.gitbook.io/r2northstar-wiki/using-northstar/launch-arguments"
-            "All vanilla TF2 launch arguments can be found at the source wiki: https://developer.valvesoftware.com/wiki/Command_Line_Options#Command-line_parameters"
+            "Launch arguments can be set in the 'config_updater.ini'. List of launch arguments:\n"
+            "-help ................. prints this help\n"
+            "-update-everything .... updates all repos defined in the 'config_updater.ini' to the latest release regardless of maybe being the latest release, ignoring flags: 'ignore_updates'\n"
+            "-onlyUpdate ........... only runs the updater without launching the defined launcher in the 'config_updater.ini'\n"
+            "-onlyLaunch ........... only launches the defined launcher in the 'config_updater.ini', without updating\n"
+            "-dedicated ............ runs the laucnher as dedicated server\n"
+            "\n"
+            "Northstar Client/ vanilla TF2 args should be put into the ns_startup_args.txt or ns_startup_args_dedi.txt for dedicated servers\n"
+            "All Northstar launch arguments can be found at the official wiki: https://r2northstar.gitbook.io/r2northstar-wiki/using-northstar/launch-arguments \n"
+            "All vanilla TF2 launch arguments can be found at the source wiki: https://developer.valvesoftware.com/wiki/Command_Line_Options#Command-line_parameters \n"
             )
         return
 
