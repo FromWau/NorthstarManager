@@ -84,11 +84,43 @@ class HaltandRunScripts(Exception):
     pass
 
 
+showhelp = False
+try:
+    i = sys.argv.index("-help")
+    sys.argv.pop(i)
+    showhelp = True
+except ValueError:
+    pass
+
 update_everything = False
 try:
-    i = sys.argv.index("--update-everything")
+    i = sys.argv.index("-update-everything")
     sys.argv.pop(i)
     update_everything = True
+except ValueError:
+    pass
+
+onlyUpdate = False
+try:
+    i = sys.argv.index("-onlyUpdate")
+    sys.argv.pop(i)
+    onlyUpdate = True
+except ValueError:
+    pass
+
+onlyLaunch = False
+try:
+    i = sys.argv.index("-onlyLaunch")
+    sys.argv.pop(i)
+    onlyLaunch = True
+except ValueError:
+    pass
+
+asdedicated = False
+try:
+    i = sys.argv.index("-dedicated")
+    sys.argv.pop(i)
+    onlyLaunch = True
 except ValueError:
     pass
 
@@ -206,8 +238,7 @@ class Updater:
             print(f"[{time.strftime('%H:%M:%S')}] [info]    Latest Version already installed for {self.blockname}")
             return
         except NoValidAsset:
-            print(
-                f"[{time.strftime('%H:%M:%S')}] [warning] Possibly faulty        release   for {self.blockname} published Version {release.tag_name} has no valit assets")
+            print(f"[{time.strftime('%H:%M:%S')}] [warning] Possibly faulty        release   for {self.blockname} published Version {release.tag_name} has no valit assets")
             return
         with tempfile.NamedTemporaryFile() as download_file:
             download(url, download_file)
@@ -273,11 +304,33 @@ class SelfUpdater(Updater):
 
 
 def main():
+    if showhelp:
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    Printing help")
+        print(
+            "Launch arguments can be set in the 'config_updater.ini'. List of launch arguments:"
+            "-help ................. prints this help"
+            "-update-everything .... updates all repos defined in the 'config_updater.ini' to the latest release regardless of maybe being the latest release, ignoring flags: 'ignore_updates'"
+            "-onlyUpdate ........... only runs the updater without launching the defined launcher in the 'config_updater.ini'"
+            "-onlyLaunch ........... only launches the defined launcher in the 'config_updater.ini', without updating"
+            "-dedicated ............ runs the laucnher as dedicated server"
+            ""
+            "Northstar Client/ vanilla TF2 args should be put into the ns_startup_args.txt or ns_startup_args_dedi.txt for dedicated servers"
+            "All Northstar launch arguments can be found at the official wiki: https://r2northstar.gitbook.io/r2northstar-wiki/using-northstar/launch-arguments"
+            "All vanilla TF2 launch arguments can be found at the source wiki: https://developer.valvesoftware.com/wiki/Command_Line_Options#Command-line_parameters"
+            )
+        return
+
+    if onlyLaunch:
+        launcher()
+        return
+
     try:
         while not updater():  # restart for github rate error
             print(f"[{time.strftime('%H:%M:%S')}] [info]    Waiting and restarting Updater in 60s...")
             time.sleep(60)
-        launcher()
+
+        if not onlyUpdate:
+            launcher()
     except HaltandRunScripts:
         for script in script_queue:
             subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
