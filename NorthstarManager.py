@@ -298,7 +298,7 @@ class SelfUpdater(Updater):
             f"timeout /t 5 && del {self.file} && move {newfile} {self.file} &&"
             f"echo [{time.strftime('%H:%M:%S')}] [info]    Installed successfully update    for {self.blockname} to        Version {release.tag_name} &&"
             f"echo [{time.strftime('%H:%M:%S')}] [info]    Launching latest install         of  {self.file.name} &&"
-            f"{self.file}"
+            f"{self.file} -onlyUpdate" if onlyUpdate else f"{self.file}"  # pass down -onlyUpdate flag to new instance if present
         )
         raise HaltandRunScripts("restart manager")
 
@@ -350,8 +350,8 @@ def updater() -> bool:
         except RateLimitExceededException:
             print(f"[{time.strftime('%H:%M:%S')}] [warning] GitHub rate exceeded for {section}")
             print(f"[{time.strftime('%H:%M:%S')}] [info]    Available requests left {g.rate_limiting[0]}/{g.rate_limiting[1]}")
-            inp = input("Launch Northstar without checking for updates? (y/n) ")
-            if inp != "n":
+            inp = input("Wait and try update again in 60sec? (y/n) ")
+            if inp != "y":
                 break
             return False
         except FileNotInZip:
@@ -365,7 +365,7 @@ def launcher():
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching Origin and waiting 10sec")
         subprocess.Popen([script], cwd=str(Path.cwd()))
         time.sleep(10)
-        print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched  Origin succesful")
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched  Origin succesfull")
 
         script = [config.get('Launcher', 'filename')] + config.get('Launcher', 'arguments').split(" ") + sys.argv[1:]
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching {' '.join(script)}")
