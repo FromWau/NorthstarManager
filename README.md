@@ -19,7 +19,7 @@ Configuration happens in the 'updater_config.ini'. The config file will be gener
 | ignore_prerelease | `optional` true / false <br> `default` false | If true will ignore releases marked as prerelease. |
 | file | `optional` filename <br> `default` mod.json | Sets the filename of the mod. Manager will render mod as corrupted if the file doesn't exist. |
 | install_dir | `optional` Path to install directory of mod. (eg. .) <br> `default` ./R2Manager/mods | Defines the install location of the mod. |
-| exclude_files | `optional` ​"ns_startup_args.txt|ns_startup_args_dedi.txt) <br> `default` 
+| exclude_files | `optional` ​Filename <br> `default` ns_startup_args.txt\|ns_startup_args_dedi.txt) | Files to be excluded from replacing when installing the new version of a mod. Files will be separated by \|. |
 
 
 
