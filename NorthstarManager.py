@@ -369,7 +369,7 @@ def launcher():
 
         script = [config.get('Launcher', 'filename')] + config.get('Launcher', 'arguments').split(" ") + sys.argv[1:]
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching {' '.join(script)}")
-        # subprocess.Popen(script, cwd=str(Path.cwd()))
+        subprocess.Popen(script, cwd=str(Path.cwd()))
     except FileNotFoundError:
         print(f"[{time.strftime('%H:%M:%S')}] [warning] Could not run {script}")
 
