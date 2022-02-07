@@ -301,16 +301,10 @@ class SelfUpdater(Updater):
 
         # pass down flags to new instance
         # add a flag to ignore updating manager when replacer will get launched with this instance
-        pass_args = \
-            " -onlyUpdate" if onlyUpdate else "" + \
-            " -dedicated" if asdedicated else "" + \
-            " -updateAllIgnoreManager" if updateAll else ""
-        print(pass_args)
-        print(
-            f"onlyUpdate: {onlyUpdate} \n"
-            f"asdedicated: {asdedicated} \n"
-            f"updateAll: {updateAll}"
-        )
+
+        pass_args = " -onlyUpdate" if onlyUpdate else ""
+        pass_args += " -dedicated" if asdedicated else ""
+        pass_args += " -updateAllIgnoreManager" if updateAll else ""
 
         global script_queue
         script_queue.append(
