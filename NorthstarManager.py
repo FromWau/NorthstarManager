@@ -92,11 +92,19 @@ try:
 except ValueError:
     pass
 
-update_everything = False
+updateAll = False
 try:
     i = sys.argv.index("-updateAll")
     sys.argv.pop(i)
-    update_everything = True
+    updateAll = True
+except ValueError:
+    pass
+
+updateAllIgnoreManager = False
+try:
+    i = sys.argv.index("-updateAllIgnoreManager")
+    sys.argv.pop(i)
+    updateAllIgnoreManager = True
 except ValueError:
     pass
 
@@ -158,7 +166,7 @@ class Updater:
         for release in releases:
             if release.prerelease and self.ignore_prerelease:
                 continue
-            if update_everything:
+            if updateAll:
                 return release
             if release.published_at > self.last_update:
                 return release
@@ -254,7 +262,7 @@ class SelfUpdater(Updater):
         for release in releases:
             if release.prerelease and self.ignore_prerelease:
                 continue
-            if update_everything or \
+            if updateAll or \
                     not self.file.exists() or \
                     release.published_at > self.last_update or \
                     datetime.fromtimestamp(self.file.stat().st_mtime) < release.published_at - timedelta(minutes=10):
@@ -292,13 +300,20 @@ class SelfUpdater(Updater):
         self.last_update = release.published_at
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Stopped Updater and rerun new Version of {self.blockname} after install")
 
+        # pass down flags to new instance
+        # add a flag to ignore updating manager when replacer will get launched with this instance
+        pass_args = \
+            " -onlyUpdate" if onlyUpdate else "" + \
+            " -dedicated" if asdedicated else "" + \
+            " -updateAllIgnoreManager" if updateAll else ""
+
         global script_queue
         script_queue.append(
             f"echo [{time.strftime('%H:%M:%S')}] [info]    Running self-replacer            for {self.blockname} to        Version {release.tag_name} &&"
             f"timeout /t 5 && del {self.file} && move {newfile} {self.file} &&"
             f"echo [{time.strftime('%H:%M:%S')}] [info]    Installed successfully update    for {self.blockname} to        Version {release.tag_name} &&"
-            f"echo [{time.strftime('%H:%M:%S')}] [info]    Launching latest install         of  {self.file.name} &&"
-            f"{self.file} -onlyUpdate" if onlyUpdate else f"{self.file}"  # pass down -onlyUpdate flag to new instance if present
+            f"echo [{time.strftime('%H:%M:%S')}] [info]    Launching latest install         of  {self.file.name}{pass_args} &&"
+            f"{self.file}{pass_args}"
         )
         raise HaltandRunScripts("restart manager")
 
