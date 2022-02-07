@@ -94,7 +94,7 @@ except ValueError:
 
 update_everything = False
 try:
-    i = sys.argv.index("-update-everything")
+    i = sys.argv.index("-updateAll")
     sys.argv.pop(i)
     update_everything = True
 except ValueError:
@@ -309,7 +309,7 @@ def main():
         print(
             "Launch arguments can be set in the 'config_updater.ini'. List of launch arguments:\n"
             "-help ................. prints this help\n"
-            "-update-everything .... updates all repos defined in the 'config_updater.ini' to the latest release regardless of maybe being the latest release, ignoring flags: 'ignore_updates'\n"
+            "-updateAll ............ updates all repos defined in the 'config_updater.ini' to the latest release regardless of maybe being the latest release, ignoring flags: 'ignore_updates'\n"
             "-onlyUpdate ........... only runs the updater without launching the defined launcher in the 'config_updater.ini'\n"
             "-onlyLaunch ........... only launches the defined launcher in the 'config_updater.ini', without updating\n"
             "-dedicated ............ runs the laucnher as dedicated server\n"
@@ -349,8 +349,7 @@ def updater() -> bool:
                     u.run()
         except RateLimitExceededException:
             print(f"[{time.strftime('%H:%M:%S')}] [warning] GitHub rate exceeded for {section}")
-            print(
-                f"[{time.strftime('%H:%M:%S')}] [info]    Available requests left {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+            print(f"[{time.strftime('%H:%M:%S')}] [info]    Available requests left {g.rate_limiting[0]}/{g.rate_limiting[1]}")
             inp = input("Launch Northstar without checking for updates? (y/n) ")
             if inp != "n":
                 break

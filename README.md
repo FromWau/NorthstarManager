@@ -21,17 +21,13 @@ Configuration happens in the 'updater_config.ini'. The config file will be gener
 | install_dir | `optional` Path to install directory of mod. (eg. .) <br> `default` ./R2Manager/mods | Defines the install location of the mod. |
 | exclude_files | `optional` ​Filename (eg. ns_startup_args.txt\|ns_startup_args_dedi.txt) <br> `default` no files | Files to be excluded from replacing when installing the new version of a mod. Files will be separated by \|. |
 
-
-
-
-
 ## Launcher Arguments
 NorthstarManager.exe can be launched with following flags:
 
 | Launch Arguments | Description |
 | --- | --- |
 | -help | prints the help section for NorthstarManager |
-| -update-everything | updates all repos defined in the 'config_updater.ini' to the latest release regardless of maybe being the latest release, ignoring flags: 'ignore_updates' |​
+| -updateAll | updates all repos defined in the 'config_updater.ini' to the latest release regardless of maybe already being the latest release, ignoring flags: 'ignore_updates' |​
 | -onlyUpdate | only runs the updater without launching the defined launcher in the 'config_updater.ini'​ |
 | -onlyLaunch | only launches the defined launcher in the 'config_updater.ini', without updating​ |
 | -dedicated | runs the laucnher as dedicated server​ |
