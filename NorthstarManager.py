@@ -43,7 +43,7 @@ if len(config.sections()) == 0:
     }
     config["Launcher"] = {
         "filename": "NorthstarLauncher.exe",
-        "arguments": "-multiple",
+        "arguments": "",
     }
 
 token = config.get("NorthstarManager", "github_token", fallback="")
@@ -215,7 +215,7 @@ class Updater:
                 if file_ not in self.exclude_files:
                     zip_.extract(file_, self.install_dir)
                 else:
-                    if not Path(file_).exists():  # check for first time install of excluded files
+                    if not Path(file_).exists():  # check for first time installation of excluded files
                         zip_.extract(file_, self.install_dir)
         else:
             for zip_info in zip_.infolist():
@@ -355,20 +355,21 @@ def updater() -> bool:
                 break
             return False
         except FileNotInZip:
-            print(f"[{time.strftime('%H:%M:%S')}] [warning] Zip file for {section} doesn't contain expected files.")
+            print(f"[{time.strftime('%H:%M:%S')}] [warning] Zip file for {section} doesn't contain expected files")
     return True
 
 
 def launcher():
     try:
-        script = "__Installer/Origin/redist/internal/OriginThinSetup.exe"
-        print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching and waiting (10sec) for OriginThinClient")
-        subprocess.run([script], cwd=str(Path.cwd()))
+        script = "C:/Program Files (x86)/Origin/Origin.exe"
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching Origin and waiting 10sec")
+        subprocess.Popen([script], cwd=str(Path.cwd()))
         time.sleep(10)
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched  Origin succesful")
 
         script = [config.get('Launcher', 'filename')] + config.get('Launcher', 'arguments').split(" ") + sys.argv[1:]
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching {' '.join(script)}")
-        subprocess.run(script, cwd=str(Path.cwd()))
+        # subprocess.Popen(script, cwd=str(Path.cwd()))
     except FileNotFoundError:
         print(f"[{time.strftime('%H:%M:%S')}] [warning] Could not run {script}")
 
