@@ -168,7 +168,7 @@ class Updater:
                 continue
             if updateAll or updateAllIgnoreManager or \
                     release.published_at > self.last_update:
-                    return release
+                return release
             if self._file != "mod.json":
                 if not self.file.exists() or self._file != "NorthstarLauncher.exe":
                     return release
@@ -305,6 +305,12 @@ class SelfUpdater(Updater):
             " -onlyUpdate" if onlyUpdate else "" + \
             " -dedicated" if asdedicated else "" + \
             " -updateAllIgnoreManager" if updateAll else ""
+        print(pass_args)
+        print(
+            f"onlyUpdate: {onlyUpdate} \n"
+            f"asdedicated: {asdedicated} \n"
+            f"updateAll: {updateAll}"
+        )
 
         global script_queue
         script_queue.append(
