@@ -1,1 +1,21 @@
-# NorthstarManager is a mod manager/ auto updater tool for Titanfall2 +Northstar
+# NorthstarManager
+... is a CLI based mod-manager/ auto updater tool for Titanfall2 +Northstar
+
+## How to install
+1. Download the NorthstarManager.exe from the [latest release page](https://github.com/FromWau/NorthstarManager/releases/latest/download/NorthstarManager.exe)
+2. Put the NorthstarManager.exe into your Titanfall2 folder. (folder which includes the Titanfall2.exe)
+3. Run NorthstarManager.exe and have fun
+
+## Configuration
+Configuration happens in the 'updater_config.ini'. The config file will be generated at launch.
+
+## Launcher Arguments
+NorthstarManager.exe can be launched with following flags:
+
+| Launch Arg | desc |
+| -------------------- | ---- |
+| -help | prints the help section for NorthstarManager |
+| -update\-everything | updates all repos defined in the 'config_updater.ini' to the latest release regardless of maybe being the latest release, ignoring flags: 'ignore_updates' |​
+| -onlyUpdate | only runs the updater without launching the defined launcher in the 'config_updater.ini'​ |
+| -onlyLaunch | only launches the defined launcher in the 'config_updater.ini', without updating​ |
+| -dedicated | runs the laucnher as dedicated server​ |
