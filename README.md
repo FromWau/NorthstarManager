@@ -15,6 +15,15 @@ Configuration happens in the 'updater_config.ini'. The config file will be gener
 | repository | Owner/RepositoryName (eg. FromWau/NorthstarManager) | Declares the repository of the mod. |
 | github_token | `optional` Github Token | Sets the Token for requests to github. A token is not mandatory but it increases the github rate limit substantially. [Get Github Token](https://github.com/settings/tokens) |
 | last_update | Timestamp with format yyyy-mm-ddThh:mm:ss (eg. 2022-02-07T13:07:29) | Defines the Timestamp when repository was updated. |
+| ignore_updates | `optional` true / false |
+
+
+
+
+
+
+
+
 
 ## Launcher Arguments
 NorthstarManager.exe can be launched with following flags:
