@@ -2,7 +2,7 @@
 ... is a CLI based mod-manager/ auto updater tool for Titanfall2 +Northstar
 
 ## How to install
-1. Download the NorthstarManager.exe from the [latest release page](https://github.com/FromWau/NorthstarManager/releases/latest/download/NorthstarManager.exe)
+1. Download the [NorthstarManager.exe](https://github.com/FromWau/NorthstarManager/releases/latest/download/NorthstarManager.exe) from the [latest release page](https://github.com/FromWau/NorthstarManager/releases/latest/)
 2. Put the NorthstarManager.exe into your Titanfall2 folder. (folder which includes the Titanfall2.exe)
 3. Run NorthstarManager.exe and have fun
 
