@@ -370,6 +370,7 @@ def updater() -> bool:
             return False
         except FileNotInZip:
             print(f"[{time.strftime('%H:%M:%S')}] [warning] Zip file for {section} doesn't contain expected files")
+    print(f"[{time.strftime('%H:%M:%S')}] [info]    Successfully checkt all mods")
     return True
 
 
