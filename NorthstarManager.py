@@ -166,10 +166,9 @@ class Updater:
         for release in releases:
             if release.prerelease and self.ignore_prerelease:
                 continue
-            if updateAll:
-                return release
-            if release.published_at > self.last_update:
-                return release
+            if updateAll or updateAllIgnoreManager or \
+                    release.published_at > self.last_update:
+                    return release
             if self._file != "mod.json":
                 if not self.file.exists() or self._file != "NorthstarLauncher.exe":
                     return release
