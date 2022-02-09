@@ -1,5 +1,9 @@
 # NorthstarManager
-... is a CLI based mod-manager/ auto updater tool for Titanfall2 +Northstar
+is a CLI based updater tool for [Northstar](https://github.com/R2Northstar/Northstar) and for custom Northstar mods published on Github. The Manager can be configured via the 'updater_config.ini' or/and via Launch arguments. <br>
+
+### TODO (idk if this will get implemented)
+Automatic setup for dedicated servers.
+
 
 ## How to install
 1. [Download the latest NorthstarManager.exe](https://github.com/FromWau/NorthstarManager/releases/latest/download/NorthstarManager.exe) or download another Version from the [release page](https://github.com/FromWau/NorthstarManager/releases).
@@ -24,10 +28,11 @@ Configuration happens in the 'updater_config.ini'. The config file will be gener
 ## Launcher Arguments
 NorthstarManager.exe can be launched with following flags:
 
-| Launch Arguments | Description |
-| --- | --- |
-| -help | Prints the help section for NorthstarManager |
-| -updateAll | Updates all repos defined in the 'config_updater.ini' to the latest release regardless of the latest release maybe being already installed, ignoring flags: 'ignore_updates' |
-| -onlyUpdate | Only runs the updater without launching the defined launcher in the 'config_updater.ini' |
-| -onlyLaunch | Only launches the defined launcher in the 'config_updater.ini', without updating the repos |
-| -dedicated | Runs the laucnher as dedicated server |
+| Launch Arguments | Expected Value | Description |
+| --- | --- | --- |
+| -help | | Prints the help section for NorthstarManager |
+| -updateAll | | Updates all repos defined in the 'config_updater.ini' to the latest release regardless of the latest release maybe being already installed, ignoring flags: 'ignore_updates' |
+| -onlyUpdate | | Only runs the updater without launching the defined launcher in the 'config_updater.ini' |
+| -onlyLaunch | | Only launches the defined launcher in the 'config_updater.ini', without updating the repos |
+| -dedicated | | Runs the launcher as dedicated server |
+| -createServer | Existing absolut path to a empty directory. (eg. C:\Games\TF2_Hosting\Server1) | Creates a dedicated server at the specified directory. Setup script will copy unmodded TF2 files to the folder (excluded are folders: r2 and vpk, which will be accessed via directory junction. Those are BIG folders.) |
