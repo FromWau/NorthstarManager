@@ -68,6 +68,7 @@ def download(url, download_file):
                 download_file.write(data)
 
 
+
 class NoValidRelease(Exception):
     pass
 
@@ -308,30 +309,41 @@ class SelfUpdater(Updater):
 
         global script_queue
         script_queue.append(
-            f"echo [{time.strftime('%H:%M:%S')}] [info]    Running self-replacer            for {self.blockname} to        Version {release.tag_name} &&"
-            f"timeout /t 5 && del {self.file} && move {newfile} {self.file} &&"
-            f"echo [{time.strftime('%H:%M:%S')}] [info]    Installed successfully update    for {self.blockname} to        Version {release.tag_name} &&"
-            f"echo [{time.strftime('%H:%M:%S')}] [info]    Launching latest install         of  {self.file.name}{pass_args} &&"
-            f"{self.file}{pass_args}"
+            f"echo [{time.strftime('%H:%M:%S')}] [info]    Running self-replacer            for {self.blockname} to        Version {release.tag_name} && "
+            f"dir && "
+            f"timeout /t 5 && "
+            f"echo delete {self.file} && "
+            f'del "{self.file}" && '
+            f"dir && "
+            f"echo move {newfile} {self.file} && "
+            f'move "{newfile}" "{self.file}" && '
+            f"dir && "
+            f"echo [{time.strftime('%H:%M:%S')}] [info]    Installed successfully update    for {self.blockname} to        Version {release.tag_name} && "
+            f"echo [{time.strftime('%H:%M:%S')}] [info]    Launching latest install         of  {self.file.name}{pass_args} && "
+            f'"{self.file.name}"{pass_args}'
         )
         raise HaltandRunScripts("restart manager")
 
 
+def printhelp():
+    print(f"[{time.strftime('%H:%M:%S')}] [info]    Printing help")
+    print(
+        "Launch arguments can be set in the 'config_updater.ini'. List of launch arguments:\n"
+        "-help ................. prints this help\n"
+        "-updateAll ............ updates all repos defined in the 'config_updater.ini' to the latest release regardless of maybe being the latest release, ignoring flags: 'ignore_updates'\n"
+        "-onlyUpdate ........... only runs the updater without launching the defined launcher in the 'config_updater.ini'\n"
+        "-onlyLaunch ........... only launches the defined launcher in the 'config_updater.ini', without updating\n"
+        "-dedicated ............ runs the laucnher as dedicated server\n"
+        "\n"
+        "Northstar Client/ vanilla TF2 args should be put into the ns_startup_args.txt or ns_startup_args_dedi.txt for dedicated servers\n"
+        "All Northstar launch arguments can be found at the official wiki: https://r2northstar.gitbook.io/r2northstar-wiki/using-northstar/launch-arguments \n"
+        "All vanilla TF2 launch arguments can be found at the source wiki: https://developer.valvesoftware.com/wiki/Command_Line_Options#Command-line_parameters \n"
+    )
+
+
 def main():
     if showhelp:
-        print(f"[{time.strftime('%H:%M:%S')}] [info]    Printing help")
-        print(
-            "Launch arguments can be set in the 'config_updater.ini'. List of launch arguments:\n"
-            "-help ................. prints this help\n"
-            "-updateAll ............ updates all repos defined in the 'config_updater.ini' to the latest release regardless of maybe being the latest release, ignoring flags: 'ignore_updates'\n"
-            "-onlyUpdate ........... only runs the updater without launching the defined launcher in the 'config_updater.ini'\n"
-            "-onlyLaunch ........... only launches the defined launcher in the 'config_updater.ini', without updating\n"
-            "-dedicated ............ runs the laucnher as dedicated server\n"
-            "\n"
-            "Northstar Client/ vanilla TF2 args should be put into the ns_startup_args.txt or ns_startup_args_dedi.txt for dedicated servers\n"
-            "All Northstar launch arguments can be found at the official wiki: https://r2northstar.gitbook.io/r2northstar-wiki/using-northstar/launch-arguments \n"
-            "All vanilla TF2 launch arguments can be found at the source wiki: https://developer.valvesoftware.com/wiki/Command_Line_Options#Command-line_parameters \n"
-            )
+        printhelp()
         return
 
     if onlyLaunch:
@@ -376,15 +388,17 @@ def updater() -> bool:
 
 def launcher():
     try:
-        script = "C:/Program Files (x86)/Origin/Origin.exe"
+        script = "'C:/Program Files (x86)/Origin/Origin.exe'"
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching Origin and waiting 10sec")
-        subprocess.Popen([script], cwd=str(Path.cwd()))
+        # subprocess.Popen([script], cwd=str(Path.cwd()))
+        subprocess.Popen(["powershell.exe", script])
         time.sleep(10)
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched  Origin succesfull")
 
         script = [config.get('Launcher', 'filename')] + config.get('Launcher', 'arguments').split(" ") + sys.argv[1:]
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching {' '.join(script)}")
-        subprocess.Popen(script, cwd=str(Path.cwd()))
+        subprocess.Popen(["powershell.exe", script])
+        # subprocess.Popen(script, cwd=str(Path.cwd()))
     except FileNotFoundError:
         print(f"[{time.strftime('%H:%M:%S')}] [warning] Could not run {script}")
 
