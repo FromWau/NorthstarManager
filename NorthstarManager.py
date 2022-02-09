@@ -14,6 +14,75 @@ from github.GitRelease import GitRelease
 from github.GithubException import RateLimitExceededException
 from tqdm import tqdm
 
+
+args = ""
+showhelp = False
+try:
+    i = sys.argv.index("-help")
+    args += " "+sys.argv.pop(i)
+    showhelp = True
+except ValueError:
+    pass
+
+updateAll = False
+try:
+    i = sys.argv.index("-updateAll")
+    args += " "+sys.argv.pop(i)
+    updateAll = True
+except ValueError:
+    pass
+
+updateAllIgnoreManager = False
+try:
+    i = sys.argv.index("-updateAllIgnoreManager")
+    args += " "+sys.argv.pop(i)
+    updateAllIgnoreManager = True
+except ValueError:
+    pass
+
+onlyUpdate = False
+try:
+    i = sys.argv.index("-onlyUpdate")
+    args += " "+sys.argv.pop(i)
+    onlyUpdate = True
+except ValueError:
+    pass
+
+onlyLaunch = False
+try:
+    i = sys.argv.index("-onlyLaunch")
+    args += " "+sys.argv.pop(i)
+    onlyLaunch = True
+except ValueError:
+    pass
+
+asdedicated = False
+try:
+    i = sys.argv.index("-dedicated")
+    args += " "+sys.argv.pop(i)
+    onlyLaunch = True
+except ValueError:
+    pass
+
+createServer = False
+createServerPath = ""
+try:
+    i = sys.argv.index("-createServer")
+    serverpath = sys.argv[i+1:i+2][0]
+    if Path(serverpath).exists():
+        args += " " + sys.argv.pop(i)
+        createServerPath = sys.argv.pop(sys.argv.index(serverpath))
+        args += " " + createServerPath
+        createServer = True
+    else:
+        print(f"[{time.strftime('%H:%M:%S')}] [warning] Arg -createServer given file location does not exist{createServerPath}")
+except IndexError:
+    print(f"[{time.strftime('%H:%M:%S')}] [warning] Arg -createServer is missing the location for the server")
+except ValueError:
+    pass
+
+print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched NorthstarManager with { 'no args' if len(args) == 0 else 'arguments:'+ args }")
+
 config = configparser.ConfigParser(allow_no_value=True)
 print(f"[{time.strftime('%H:%M:%S')}] [info]    Reading config from 'updater_config.ini'...")
 config.read("updater_config.ini")
@@ -38,7 +107,7 @@ if len(config.sections()) == 0:
         "exclude_files": "ns_startup_args.txt|ns_startup_args_dedi.txt",
     }
     config["ExampleMod"] = {
-        "repository": "example/example-mod",
+        "repository": "example-user/example-repo",
         "last_update": "0001-01-01T00:00:00",
     }
     config["Launcher"] = {
@@ -68,7 +137,6 @@ def download(url, download_file):
                 download_file.write(data)
 
 
-
 class NoValidRelease(Exception):
     pass
 
@@ -82,55 +150,6 @@ class FileNotInZip(Exception):
 
 
 class HaltandRunScripts(Exception):
-    pass
-
-
-showhelp = False
-try:
-    i = sys.argv.index("-help")
-    sys.argv.pop(i)
-    showhelp = True
-except ValueError:
-    pass
-
-updateAll = False
-try:
-    i = sys.argv.index("-updateAll")
-    sys.argv.pop(i)
-    updateAll = True
-except ValueError:
-    pass
-
-updateAllIgnoreManager = False
-try:
-    i = sys.argv.index("-updateAllIgnoreManager")
-    sys.argv.pop(i)
-    updateAllIgnoreManager = True
-except ValueError:
-    pass
-
-onlyUpdate = False
-try:
-    i = sys.argv.index("-onlyUpdate")
-    sys.argv.pop(i)
-    onlyUpdate = True
-except ValueError:
-    pass
-
-onlyLaunch = False
-try:
-    i = sys.argv.index("-onlyLaunch")
-    sys.argv.pop(i)
-    onlyLaunch = True
-except ValueError:
-    pass
-
-asdedicated = False
-try:
-    i = sys.argv.index("-dedicated")
-    sys.argv.pop(i)
-    onlyLaunch = True
-except ValueError:
     pass
 
 
@@ -300,24 +319,15 @@ class SelfUpdater(Updater):
         self.last_update = release.published_at
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Stopped Updater and rerun new Version of {self.blockname} after install")
 
-        # pass down flags to new instance
-        # add a flag to ignore updating manager when replacer will get launched with this instance
-
         pass_args = " -onlyUpdate" if onlyUpdate else ""
         pass_args += " -dedicated" if asdedicated else ""
         pass_args += " -updateAllIgnoreManager" if updateAll else ""
 
-        global script_queue
         script_queue.append(
             f"echo [{time.strftime('%H:%M:%S')}] [info]    Running self-replacer            for {self.blockname} to        Version {release.tag_name} && "
-            f"dir && "
             f"timeout /t 5 && "
-            f"echo delete {self.file} && "
             f'del "{self.file}" && '
-            f"dir && "
-            f"echo move {newfile} {self.file} && "
             f'move "{newfile}" "{self.file}" && '
-            f"dir && "
             f"echo [{time.strftime('%H:%M:%S')}] [info]    Installed successfully update    for {self.blockname} to        Version {release.tag_name} && "
             f"echo [{time.strftime('%H:%M:%S')}] [info]    Launching latest install         of  {self.file.name}{pass_args} && "
             f'"{self.file.name}"{pass_args}'
@@ -342,15 +352,43 @@ def printhelp():
 
 
 def main():
-    if showhelp:
-        printhelp()
-        return
-
-    if onlyLaunch:
-        launcher()
-        return
-
     try:
+        if createServer:
+            current_dir = Path.cwd().resolve()
+            pass_args = " -updateAll -onlyUpdate"
+
+            script_queue.append(
+                f"echo [{time.strftime('%H:%M:%S')}] [info]    Started setup for dedicated Northstar server at {createServerPath} && "
+                f"echo [{time.strftime('%H:%M:%S')}] [info]    Copying TF2 files to new server location && "
+                f'xcopy "{current_dir}/__Installer" "{createServerPath}/__Installer/" /s /e /q /I && '
+                f'xcopy "{current_dir}/bin" "{createServerPath}/bin/" /s /e /q /I && '
+                f'xcopy "{current_dir}/Core" "{createServerPath}/Core/" /s /e /q /I && '
+                f'xcopy "{current_dir}/platform" "{createServerPath}/platform/" /s /e /q /I && '
+                f'xcopy "{current_dir}/Support" "{createServerPath}/Support/" /s /e /q /I && '
+                f'xcopy "{current_dir}\\build.txt" "{createServerPath}" /q && '
+                f'xcopy "{current_dir}\\gameversion.txt" "{createServerPath}" /q && '
+                f'xcopy "{current_dir}\\server.dll" "{createServerPath}" /q && '
+                f'xcopy "{current_dir}\\Titanfall2.exe" "{createServerPath}" /q && '
+                f'xcopy "{current_dir}\\Titanfall2_trial.exe" "{createServerPath}" /q && '
+                f"echo [{time.strftime('%H:%M:%S')}] [info]    Creating a junction for vpk and r2 && "
+                f'mklink /j "{createServerPath}/vpk" "{current_dir}/vpk" && '
+                f'mklink /j "{createServerPath}/r2" "{current_dir}/r2" && '
+                f"echo [{time.strftime('%H:%M:%S')}] [info]    Copying NorthstarManager to new server location && "
+                f'xcopy "{current_dir}\\NorthstarManager.exe" "{createServerPath}" /q  && '
+                f"echo [{time.strftime('%H:%M:%S')}] [info]    Launch initial setup for NorthstarManager.exe{pass_args}  && "
+                f'"{current_dir}/NorthstarManager.exe"{pass_args} && '
+                f"echo [{time.strftime('%H:%M:%S')}] [info]    Successfully setup dedicated Northstar server at {createServerPath}. Run dedicated server with: {current_dir}/NorthstarManager.exe -dedicated"
+            )
+            raise HaltandRunScripts("restart manager")
+
+        if showhelp:
+            printhelp()
+            return
+
+        if onlyLaunch:
+            launcher()
+            return
+
         while not updater():  # restart for github rate error
             print(f"[{time.strftime('%H:%M:%S')}] [info]    Waiting and restarting Updater in 60s...")
             time.sleep(60)
@@ -389,16 +427,14 @@ def updater() -> bool:
 def launcher():
     try:
         script = "'C:/Program Files (x86)/Origin/Origin.exe'"
-        print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching Origin and waiting 10sec")
-        # subprocess.Popen([script], cwd=str(Path.cwd()))
-        subprocess.Popen(["powershell.exe", script])
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching Origin and waiting 10sec...")
+        subprocess.Popen(script, cwd=str(Path.cwd()))
         time.sleep(10)
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched  Origin succesfull")
 
         script = [config.get('Launcher', 'filename')] + config.get('Launcher', 'arguments').split(" ") + sys.argv[1:]
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching {' '.join(script)}")
-        subprocess.Popen(["powershell.exe", script])
-        # subprocess.Popen(script, cwd=str(Path.cwd()))
+        subprocess.Popen(script, cwd=str(Path.cwd()))
     except FileNotFoundError:
         print(f"[{time.strftime('%H:%M:%S')}] [warning] Could not run {script}")
 
