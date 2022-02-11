@@ -358,8 +358,8 @@ def main():
             pass_args = " -updateAll -onlyUpdate"
 
             script_queue.append(
-                f"echo [{time.strftime('%H:%M:%S')}] [info]    Started setup for dedicated Northstar server at {createServerPath} && "
-                f"echo [{time.strftime('%H:%M:%S')}] [info]    Copying TF2 files to new server location && "
+                f'echo [{time.strftime("%H:%M:%S")}] [info]    Started setup for dedicated Northstar server at {createServerPath} && '
+                f'echo [{time.strftime("%H:%M:%S")}] [info]    Copying TF2 files to new server location && '
                 f'xcopy "{current_dir}/__Installer" "{createServerPath}/__Installer/" /s /e /q /I && '
                 f'xcopy "{current_dir}/bin" "{createServerPath}/bin/" /s /e /q /I && '
                 f'xcopy "{current_dir}/Core" "{createServerPath}/Core/" /s /e /q /I && '
@@ -370,14 +370,14 @@ def main():
                 f'xcopy "{current_dir}\\server.dll" "{createServerPath}" /q && '
                 f'xcopy "{current_dir}\\Titanfall2.exe" "{createServerPath}" /q && '
                 f'xcopy "{current_dir}\\Titanfall2_trial.exe" "{createServerPath}" /q && '
-                f"echo [{time.strftime('%H:%M:%S')}] [info]    Creating a junction for vpk and r2 && "
+                f'echo [{time.strftime("%H:%M:%S")}] [info]    Creating a junction for vpk and r2 && '
                 f'mklink /j "{createServerPath}/vpk" "{current_dir}/vpk" && '
                 f'mklink /j "{createServerPath}/r2" "{current_dir}/r2" && '
-                f"echo [{time.strftime('%H:%M:%S')}] [info]    Copying NorthstarManager to new server location && "
+                f'echo [{time.strftime("%H:%M:%S")}] [info]    Copying NorthstarManager to new server location && '
                 f'xcopy "{current_dir}\\NorthstarManager.exe" "{createServerPath}" /q  && '
-                f"echo [{time.strftime('%H:%M:%S')}] [info]    Launch initial setup for NorthstarManager.exe{pass_args}  && "
+                f'echo [{time.strftime("%H:%M:%S")}] [info]    Launch initial setup for NorthstarManager.exe{pass_args}  && '
                 f'"{current_dir}/NorthstarManager.exe"{pass_args} && '
-                f"echo [{time.strftime('%H:%M:%S')}] [info]    Successfully setup dedicated Northstar server at {createServerPath}. Run dedicated server with: {current_dir}/NorthstarManager.exe -dedicated"
+                f'echo [{time.strftime("%H:%M:%S")}] [info]    Successfully setup dedicated Northstar server at {createServerPath}. Run dedicated server with: {current_dir}/NorthstarManager.exe -dedicated'
             )
             raise HaltandRunScripts("restart manager")
 
@@ -426,7 +426,7 @@ def updater() -> bool:
 
 def launcher():
     try:
-        script = "'C:/Program Files (x86)/Origin/Origin.exe'"
+        script = '"C:/Program Files (x86)/Origin/Origin.exe"'
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching Origin and waiting 10sec...")
         subprocess.Popen(script, cwd=str(Path.cwd()))
         time.sleep(10)
