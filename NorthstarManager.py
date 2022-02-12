@@ -437,7 +437,7 @@ def updater() -> bool:
         try:
             if section in ("GLOBAL", "Launcher"):
                 continue
-            if section == "NorthstarManager":
+            if section == "NorthstarManager" and not updateAllIgnoreManager:
                 print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {section}...")
                 SelfUpdater(section).run()
             if section == "Mods":
