@@ -1,4 +1,5 @@
-import configparser
+import array
+import confuse
 import shutil
 import subprocess
 import sys
@@ -7,19 +8,17 @@ import time
 import zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
-
 import requests
 from github import Github
 from github.GitRelease import GitRelease
 from github.GithubException import RateLimitExceededException
 from tqdm import tqdm
 
-
 args = ""
 showhelp = False
 try:
     i = sys.argv.index("-help")
-    args += " "+sys.argv.pop(i)
+    args += " " + sys.argv.pop(i)
     showhelp = True
 except ValueError:
     pass
@@ -27,7 +26,7 @@ except ValueError:
 updateAll = False
 try:
     i = sys.argv.index("-updateAll")
-    args += " "+sys.argv.pop(i)
+    args += " " + sys.argv.pop(i)
     updateAll = True
 except ValueError:
     pass
@@ -35,7 +34,7 @@ except ValueError:
 updateAllIgnoreManager = False
 try:
     i = sys.argv.index("-updateAllIgnoreManager")
-    args += " "+sys.argv.pop(i)
+    args += " " + sys.argv.pop(i)
     updateAllIgnoreManager = True
 except ValueError:
     pass
@@ -43,7 +42,7 @@ except ValueError:
 onlyUpdate = False
 try:
     i = sys.argv.index("-onlyUpdate")
-    args += " "+sys.argv.pop(i)
+    args += " " + sys.argv.pop(i)
     onlyUpdate = True
 except ValueError:
     pass
@@ -51,7 +50,7 @@ except ValueError:
 onlyLaunch = False
 try:
     i = sys.argv.index("-onlyLaunch")
-    args += " "+sys.argv.pop(i)
+    args += " " + sys.argv.pop(i)
     onlyLaunch = True
 except ValueError:
     pass
@@ -59,7 +58,7 @@ except ValueError:
 asdedicated = False
 try:
     i = sys.argv.index("-dedicated")
-    args += " "+sys.argv.pop(i)
+    args += " " + sys.argv.pop(i)
     onlyLaunch = True
 except ValueError:
     pass
@@ -68,61 +67,82 @@ createServer = False
 createServerPath = ""
 try:
     i = sys.argv.index("-createServer")
-    serverpath = sys.argv[i+1:i+2][0]
+    serverpath = sys.argv[i + 1:i + 2][0]
     if Path(serverpath).exists():
         args += " " + sys.argv.pop(i)
         createServerPath = sys.argv.pop(sys.argv.index(serverpath))
         args += " " + createServerPath
         createServer = True
     else:
-        print(f"[{time.strftime('%H:%M:%S')}] [warning] Arg -createServer given file location does not exist{createServerPath}")
+        print(
+            f"[{time.strftime('%H:%M:%S')}] [warning] Arg -createServer given file location does not exist{createServerPath}")
 except IndexError:
     print(f"[{time.strftime('%H:%M:%S')}] [warning] Arg -createServer is missing the location for the server")
 except ValueError:
     pass
 
-print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched NorthstarManager with { 'no args' if len(args) == 0 else 'arguments:'+ args }")
-
-config = configparser.ConfigParser(allow_no_value=True)
-print(f"[{time.strftime('%H:%M:%S')}] [info]    Reading config from 'updater_config.ini'...")
-config.read("updater_config.ini")
-if len(config.sections()) == 0:
-    print(f"[{time.strftime('%H:%M:%S')}] [warning] 'updater_config.ini' is empty or does not exist")
+print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched NorthstarManager with {'no args' if len(args) == 0 else 'arguments:' + args}")
+config = confuse.Configuration("NorthstarManager", __name__)
+config.set_file('./manager_config.yaml')
+print(f"[{time.strftime('%H:%M:%S')}] [info]    Reading config from 'manager_config.yaml'...")
+config.read()
+if len(config.get()) == 0:
+    print(f"[{time.strftime('%H:%M:%S')}] [warning] 'manager_config.yaml' is empty or does not exist")
     print(f"[{time.strftime('%H:%M:%S')}] [info]    Using default config instead")
-    config["NorthstarManager"] = {
-        "repository": "FromWau/NorthstarManager",
-        "github_token": "",
-        "last_update": "0001-01-01T00:00:00",
-        "ignore_prerelease": "true",
-        "file": "NorthstarManager.exe",
-        "install_dir": ".",
-        "exclude_files": "",
-    }
-    config["Northstar"] = {
-        "repository": "R2Northstar/Northstar",
-        "last_update": "0001-01-01T00:00:00",
-        "ignore_prerelease": "true",
-        "file": "NorthstarLauncher.exe",
-        "install_dir": ".",
-        "exclude_files": "ns_startup_args.txt|ns_startup_args_dedi.txt",
-    }
-    config["ExampleMod"] = {
-        "repository": "example-user/example-repo",
-        "last_update": "0001-01-01T00:00:00",
-    }
-    config["Launcher"] = {
-        "filename": "NorthstarLauncher.exe",
-        "arguments": "",
-    }
+    config.set({
+        'GLOBAL': {
+            'github_token': '',
+        },
+        'NorthstarManager': {
+            'repository': 'FromWau/NorthstarManager',
+            'last_update': '0001-01-01T00:00:00',
+            'ignore_prerelease': 'yes',
+            'file': 'NorthstarManager.exe',
+            'install_dir': '.',
+        },
+        'Mods': {
+            'Northstar': {
+                'repository': 'R2Northstar/Northstar',
+                'last_update': '0001-01-01T00:00:00',
+                'ignore_prerelease': 'yes',
+                'file': 'NorthstarLauncher.exe',
+                'install_dir': '.',
+                'exclude_files': ['ns_startup_args.txt', 'ns_startup_args_dedi.txt'],
+            }
+        },
+        'Launcher': {
+            'filename': 'NorthstarLauncher.exe',
+            'argumnets': ''
+        },
+    })
 
-token = config.get("NorthstarManager", "github_token", fallback="")
+
+token = config['GLOBAL']['github_token'].get()
 if len(token) == 0:
     g = Github()
-    print(f"[{time.strftime('%H:%M:%S')}] [info]    No configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+    print(
+        f"[{time.strftime('%H:%M:%S')}] [info]    No configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
 else:
     g = Github(token)
-    print(f"[{time.strftime('%H:%M:%S')}] [info]    Using configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+    print(
+        f"[{time.strftime('%H:%M:%S')}] [info]    Using configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
 script_queue = []
+
+
+def printhelp():
+    print(f"[{time.strftime('%H:%M:%S')}] [info]    Printing help")
+    print(
+        "Launch arguments can be set in the 'config_updater.ini'. List of launch arguments:\n"
+        "-help ................. prints this help\n"
+        "-updateAll ............ updates all repos defined in the 'config_updater.ini' to the latest release regardless of maybe being the latest release, ignoring flags: 'ignore_updates'\n"
+        "-onlyUpdate ........... only runs the updater without launching the defined launcher in the 'config_updater.ini'\n"
+        "-onlyLaunch ........... only launches the defined launcher in the 'config_updater.ini', without updating\n"
+        "-dedicated ............ runs the laucnher as dedicated server\n"
+        "\n"
+        "Northstar Client/ vanilla TF2 args should be put into the ns_startup_args.txt or ns_startup_args_dedi.txt for dedicated servers\n"
+        "All Northstar launch arguments can be found at the official wiki: https://r2northstar.gitbook.io/r2northstar-wiki/using-northstar/launch-arguments \n"
+        "All vanilla TF2 launch arguments can be found at the source wiki: https://developer.valvesoftware.com/wiki/Command_Line_Options#Command-line_parameters \n"
+    )
 
 
 def download(url, download_file):
@@ -153,33 +173,109 @@ class HaltandRunScripts(Exception):
     pass
 
 
-class Updater:
+class SelfUpdater:
     def __init__(self, blockname):
         self.blockname = blockname
-        self.repository = config.get(blockname, "repository")
-        self.github_token = config.get(blockname, "github_token", fallback="")
-        self.ignore_updates = config.getboolean(blockname, "ignore_updates", fallback=False)
+        self.repository = config[blockname]["repository"].get()
+        self.repo = g.get_repo(self.repository)
+        self.ignore_updates = config[blockname]["ignore_updates"].get(confuse.Optional(bool, default=False))
         if self.ignore_updates:
             print(f"[{time.strftime('%H:%M:%S')}] [info]    Search stopped for new releases  for {self.blockname}, ignore_updates flag is set")
             return
-        self.ignore_prerelease = config.getboolean(blockname, "ignore_prerelease", fallback=True)
-        self._file = config.get(self.blockname, "file", fallback="mod.json")
-        self.repo = g.get_repo(self.repository)
-        self.install_dir = Path(config.get(blockname, "install_dir", fallback="./R2Northstar/mods"))
+        self.ignore_prerelease = config[blockname]["ignore_prerelease"].get(confuse.Optional(bool, default=True))
+        self.install_dir = Path(config[blockname]["install_dir"].get(confuse.Optional(str, default=".")))
+        self._file = config[blockname]["file"].get(confuse.Optional(str, default="NorthstarController.exe"))
         self.file = (self.install_dir / self._file).resolve()
-        self.exclude_files = config \
-            .get(blockname, "exclude_files", fallback="") \
-            .split("|")
 
     @property
     def last_update(self):
-        return datetime.fromisoformat(
-            config.get(self.blockname, "last_update", fallback=datetime.min.isoformat())
-        )
+        return datetime.fromisoformat(config[self.blockname]["last_update"])  # fallback=datetime.min.isoformat()
 
     @last_update.setter
     def last_update(self, value: datetime):
-        config.set(self.blockname, "last_update", value.isoformat())
+        config[self.blockname]["last_update"].set(value.isoformat())
+
+    def release(self):
+        releases = self.repo.get_releases()
+        for release in releases:
+            if release.prerelease and self.ignore_prerelease:
+                continue
+            if updateAll or \
+                    not self.file.exists() or \
+                    release.published_at > self.last_update or \
+                    datetime.fromtimestamp(self.file.stat().st_mtime) < release.published_at - timedelta(minutes=10):
+                try:  # if asset not available contine search
+                    return release, self.asset(release)
+                except NoValidAsset:
+                    continue
+        raise NoValidRelease("No new release found")
+
+    def asset(self, release: GitRelease):
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    Updating to        new release   for {self.blockname} published Version {release.tag_name}")
+        assets = release.get_assets()
+        for asset in assets:
+            if asset.content_type in "application/octet-stream":
+                return asset
+        raise NoValidAsset("No valid asset was found in release")
+
+    def run(self):
+        if self.ignore_updates:
+            return
+        try:
+            release, asset = self.release()
+        except NoValidRelease:
+            print(f"[{time.strftime('%H:%M:%S')}] [info]    Latest Version already installed for {self.blockname}")
+            return
+        except NoValidAsset:
+            print(f"[{time.strftime('%H:%M:%S')}] [warning] Possibly faulty        release   for {self.blockname} published Version {release.tag_name} has no valit assets")
+            return
+        with tempfile.NamedTemporaryFile(delete=False) as download_file:
+            download(asset.browser_download_url, download_file)
+
+        newfile: Path = self.file.with_suffix(".new")
+        shutil.move(download_file.name, newfile)
+        self.last_update = release.published_at
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    Stopped Updater and rerun new Version of {self.blockname} after install")
+
+        pass_args = " -onlyUpdate" if onlyUpdate else ""
+        pass_args += " -dedicated" if asdedicated else ""
+        pass_args += " -updateAllIgnoreManager" if updateAll else ""
+
+        script_queue.append(
+            f"echo [{time.strftime('%H:%M:%S')}] [info]    Running self-replacer            for {self.blockname} to        Version {release.tag_name} && "
+            f"timeout /t 5 && "
+            f'del "{self.file}" && '
+            f'move "{newfile}" "{self.file}" && '
+            f"echo [{time.strftime('%H:%M:%S')}] [info]    Installed successfully update    for {self.blockname} to        Version {release.tag_name} && "
+            f"echo [{time.strftime('%H:%M:%S')}] [info]    Launching latest install         of  {self.file.name}{pass_args} && "
+            f'"{self.file.name}"{pass_args}'
+        )
+        raise HaltandRunScripts("restart manager")
+
+
+class ModUpdater:
+    def __init__(self, blockname):
+        self.blockname = blockname
+        self.repository = config[blockname]["repository"].get()
+        self.repo = g.get_repo(self.repository)
+        self.ignore_updates = config[blockname]["ignore_updates"].get(confuse.Optional(bool, default=False))
+        if self.ignore_updates:
+            print(f"[{time.strftime('%H:%M:%S')}] [info]    Search stopped for new releases  for {self.blockname}, ignore_updates flag is set")
+            return
+        self.ignore_prerelease = config[blockname]["ignore_prerelease"].get(confuse.Optional(bool, default=True))
+        self.install_dir = Path(config[blockname]["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))
+        self._file = config[blockname]["file"].get(confuse.Optional(str, default="mod.json"))
+        self.file = (self.install_dir / self._file).resolve()
+        self.exclude_files = config[blockname]["exclude_files"].get(confuse.Optional(array, default=""))
+        print(f"exclude: {self.exclude_files}")
+
+    @property
+    def last_update(self):
+        return datetime.fromisoformat(config[self.blockname]["last_update"])  # fallback=datetime.min.isoformat()
+
+    @last_update.setter
+    def last_update(self, value: datetime):
+        config[self.blockname]["last_update"].set(value.isoformat())
 
     def release(self):
         releases = self.repo.get_releases()
@@ -265,166 +361,96 @@ class Updater:
             print(f"[{time.strftime('%H:%M:%S')}] [info]    Latest Version already installed for {self.blockname}")
             return
         except NoValidAsset:
-            print(f"[{time.strftime('%H:%M:%S')}] [warning] Possibly faulty        release   for {self.blockname} published Version {release.tag_name} has no valit assets")
+            print(
+                f"[{time.strftime('%H:%M:%S')}] [warning] Possibly faulty        release   for {self.blockname} published Version {release.tag_name} has no valit assets")
             return
         with tempfile.NamedTemporaryFile() as download_file:
             download(url, download_file)
             release_zip = zipfile.ZipFile(download_file)
             self.extract(release_zip)
             self.last_update = release.published_at
-            print(f"[{time.strftime('%H:%M:%S')}] [info]    Installed successfully update    for {self.blockname} to        Version {release.tag_name}")
-
-
-class SelfUpdater(Updater):
-    def release(self):
-        releases = self.repo.get_releases()
-        for release in releases:
-            if release.prerelease and self.ignore_prerelease:
-                continue
-            if updateAll or \
-                    not self.file.exists() or \
-                    release.published_at > self.last_update or \
-                    datetime.fromtimestamp(self.file.stat().st_mtime) < release.published_at - timedelta(minutes=10):
-                try:  # if asset not available contine search
-                    return release, self.asset(release)
-                except NoValidAsset:
-                    continue
-
-        raise NoValidRelease("No new release found")
-
-    def asset(self, release: GitRelease):
-        print(f"[{time.strftime('%H:%M:%S')}] [info]    Updating to        new release   for {self.blockname} published Version {release.tag_name}")
-        assets = release.get_assets()
-        for asset in assets:
-            if asset.content_type in "application/octet-stream":
-                return asset
-        raise NoValidAsset("No valid asset was found in release")
-
-    def run(self):
-        if self.ignore_updates:
-            return
-        try:
-            release, asset = self.release()
-        except NoValidRelease:
-            print(f"[{time.strftime('%H:%M:%S')}] [info]    Latest Version already installed for {self.blockname}")
-            return
-        except NoValidAsset:
-            print(f"[{time.strftime('%H:%M:%S')}] [warning] Possibly faulty        release   for {self.blockname} published Version {release.tag_name} has no valit assets")
-            return
-        with tempfile.NamedTemporaryFile(delete=False) as download_file:
-            download(asset.browser_download_url, download_file)
-
-        newfile: Path = self.file.with_suffix(".new")
-        shutil.move(download_file.name, newfile)
-        self.last_update = release.published_at
-        print(f"[{time.strftime('%H:%M:%S')}] [info]    Stopped Updater and rerun new Version of {self.blockname} after install")
-
-        pass_args = " -onlyUpdate" if onlyUpdate else ""
-        pass_args += " -dedicated" if asdedicated else ""
-        pass_args += " -updateAllIgnoreManager" if updateAll else ""
-
-        script_queue.append(
-            f"echo [{time.strftime('%H:%M:%S')}] [info]    Running self-replacer            for {self.blockname} to        Version {release.tag_name} && "
-            f"timeout /t 5 && "
-            f'del "{self.file}" && '
-            f'move "{newfile}" "{self.file}" && '
-            f"echo [{time.strftime('%H:%M:%S')}] [info]    Installed successfully update    for {self.blockname} to        Version {release.tag_name} && "
-            f"echo [{time.strftime('%H:%M:%S')}] [info]    Launching latest install         of  {self.file.name}{pass_args} && "
-            f'"{self.file.name}"{pass_args}'
-        )
-        raise HaltandRunScripts("restart manager")
-
-
-def printhelp():
-    print(f"[{time.strftime('%H:%M:%S')}] [info]    Printing help")
-    print(
-        "Launch arguments can be set in the 'config_updater.ini'. List of launch arguments:\n"
-        "-help ................. prints this help\n"
-        "-updateAll ............ updates all repos defined in the 'config_updater.ini' to the latest release regardless of maybe being the latest release, ignoring flags: 'ignore_updates'\n"
-        "-onlyUpdate ........... only runs the updater without launching the defined launcher in the 'config_updater.ini'\n"
-        "-onlyLaunch ........... only launches the defined launcher in the 'config_updater.ini', without updating\n"
-        "-dedicated ............ runs the laucnher as dedicated server\n"
-        "\n"
-        "Northstar Client/ vanilla TF2 args should be put into the ns_startup_args.txt or ns_startup_args_dedi.txt for dedicated servers\n"
-        "All Northstar launch arguments can be found at the official wiki: https://r2northstar.gitbook.io/r2northstar-wiki/using-northstar/launch-arguments \n"
-        "All vanilla TF2 launch arguments can be found at the source wiki: https://developer.valvesoftware.com/wiki/Command_Line_Options#Command-line_parameters \n"
-    )
+            print(
+                f"[{time.strftime('%H:%M:%S')}] [info]    Installed successfully update    for {self.blockname} to        Version {release.tag_name}")
 
 
 def main():
+    # print(config.dump())
     try:
-        if createServer:
-            current_dir = Path.cwd().resolve()
-            pass_args = " -updateAll -onlyUpdate"
-
-            script_queue.append(
-                f"echo [{time.strftime('%H:%M:%S')}] [info]    Started setup for dedicated Northstar server at {createServerPath} && "
-                f"echo [{time.strftime('%H:%M:%S')}] [info]    Copying TF2 files to new server location && "
-                f'xcopy "{current_dir}/__Installer" "{createServerPath}/__Installer/" /s /e /q /I && '
-                f'xcopy "{current_dir}/bin" "{createServerPath}/bin/" /s /e /q /I && '
-                f'xcopy "{current_dir}/Core" "{createServerPath}/Core/" /s /e /q /I && '
-                f'xcopy "{current_dir}/platform" "{createServerPath}/platform/" /s /e /q /I && '
-                f'xcopy "{current_dir}/Support" "{createServerPath}/Support/" /s /e /q /I && '
-                f'xcopy "{current_dir}\\build.txt" "{createServerPath}" /q && '
-                f'xcopy "{current_dir}\\gameversion.txt" "{createServerPath}" /q && '
-                f'xcopy "{current_dir}\\server.dll" "{createServerPath}" /q && '
-                f'xcopy "{current_dir}\\Titanfall2.exe" "{createServerPath}" /q && '
-                f'xcopy "{current_dir}\\Titanfall2_trial.exe" "{createServerPath}" /q && '
-                f"echo [{time.strftime('%H:%M:%S')}] [info]    Creating a junction for vpk and r2 && "
-                f'mklink /j "{createServerPath}/vpk" "{current_dir}/vpk" && '
-                f'mklink /j "{createServerPath}/r2" "{current_dir}/r2" && '
-                f"echo [{time.strftime('%H:%M:%S')}] [info]    Copying NorthstarManager to new server location && "
-                f'xcopy "{current_dir}\\NorthstarManager.exe" "{createServerPath}" /q  && '
-                f"echo [{time.strftime('%H:%M:%S')}] [info]    Launch initial setup for NorthstarManager.exe{pass_args}  && "
-                f'"{current_dir}/NorthstarManager.exe"{pass_args} && '
-                f"echo [{time.strftime('%H:%M:%S')}] [info]    Successfully setup dedicated Northstar server at {createServerPath}. Run dedicated server with: {current_dir}/NorthstarManager.exe -dedicated"
-            )
-            print("done")
-            raise HaltandRunScripts("restart manager")
+        # if createServer:
+        #     current_dir = Path.cwd().resolve()
+        #     pass_args = " -updateAll -onlyUpdate"
+        #
+        #     script_queue.append(
+        #         f"echo [{time.strftime('%H:%M:%S')}] [info]    Started setup for dedicated Northstar server at {createServerPath} && "
+        #         f"echo [{time.strftime('%H:%M:%S')}] [info]    Copying TF2 files to new server location && "
+        #         f'xcopy "{current_dir}/__Installer" "{createServerPath}/__Installer/" /s /e /q /I && '
+        #         f'xcopy "{current_dir}/bin" "{createServerPath}/bin/" /s /e /q /I && '
+        #         f'xcopy "{current_dir}/Core" "{createServerPath}/Core/" /s /e /q /I && '
+        #         f'xcopy "{current_dir}/platform" "{createServerPath}/platform/" /s /e /q /I && '
+        #         f'xcopy "{current_dir}/Support" "{createServerPath}/Support/" /s /e /q /I && '
+        #         f'xcopy "{current_dir}\\build.txt" "{createServerPath}" /q && '
+        #         f'xcopy "{current_dir}\\gameversion.txt" "{createServerPath}" /q && '
+        #         f'xcopy "{current_dir}\\server.dll" "{createServerPath}" /q && '
+        #         f'xcopy "{current_dir}\\Titanfall2.exe" "{createServerPath}" /q && '
+        #         f'xcopy "{current_dir}\\Titanfall2_trial.exe" "{createServerPath}" /q && '
+        #         f"echo [{time.strftime('%H:%M:%S')}] [info]    Creating a junction for vpk and r2 && "
+        #         f'mklink /j "{createServerPath}/vpk" "{current_dir}/vpk" && '
+        #         f'mklink /j "{createServerPath}/r2" "{current_dir}/r2" && '
+        #         f"echo [{time.strftime('%H:%M:%S')}] [info]    Copying NorthstarManager to new server location && "
+        #         f'xcopy "{current_dir}\\NorthstarManager.exe" "{createServerPath}" /q  && '
+        #         f"echo [{time.strftime('%H:%M:%S')}] [info]    Launch initial setup for NorthstarManager.exe{pass_args}  && "
+        #         f'"{createServerPath}/NorthstarManager.exe"{pass_args} && '
+        #         f"echo [{time.strftime('%H:%M:%S')}] [info]    Successfully setup dedicated Northstar server. Run dedicated server with: NorthstarManager.exe -dedicated"
+        #     )
+        #     raise HaltandRunScripts("restart manager")
 
         if showhelp:
             printhelp()
             return
 
-        if onlyLaunch:
-            launcher()
-            return
+        # if onlyLaunch:
+        #     launcher()
+        #     return
 
         while not updater():  # restart for github rate error
             print(f"[{time.strftime('%H:%M:%S')}] [info]    Waiting and restarting Updater in 60s...")
             time.sleep(60)
 
-        if not onlyUpdate:
-            launcher()
+        # if not onlyUpdate:
+        #     launcher()
     except HaltandRunScripts:
         for script in script_queue:
             subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
 
 
 def updater() -> bool:
-    print(f"{updateAllIgnoreManager}")
-    for section in config.sections():
+    for section in config.keys().remove("GLOBAL", "Launcher"):
         try:
-            if section not in ("Launcher", "ExampleMod"):
+            # match section:
+            #     case "NorthstarManager":
+            #         print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {section}...")
+            #         SelfUpdater(section).run()
+            #     case "Mods":
+            #         for mod in config[section]:
+            #             print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {mod.name}...")
+            #             ModUpdater(mod).run()
+
+            if section == "NorthstarManager":
                 print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {section}...")
-                if section == "NorthstarManager":
-                    u = SelfUpdater(section)
-                    u.run()
-                else:
-                    u = Updater(section)
-                    u.run()
+                SelfUpdater(section).run()
+            if section == "Mods":
+                for mod in config[section]:
+                    print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {mod.name}...")
+
         except RateLimitExceededException:
             print(f"[{time.strftime('%H:%M:%S')}] [warning] GitHub rate exceeded for {section}")
             print(f"[{time.strftime('%H:%M:%S')}] [info]    Available requests left {g.rate_limiting[0]}/{g.rate_limiting[1]}")
-            inp = input("Wait and try update again in 60sec? (y/n) ")
-            if inp != "y":
+            if "y" != input("Wait and try update again in 60sec? (y/n) "):
                 break
             return False
         except FileNotInZip:
             print(f"[{time.strftime('%H:%M:%S')}] [warning] Zip file for {section} doesn't contain expected files")
     print(f"[{time.strftime('%H:%M:%S')}] [info]    Successfully checkt all mods")
-    if updateAllIgnoreManager:
-        print(f"[{time.strftime('%H:%M:%S')}] [info]    Successfully setup dedicated Northstar server. Run dedicated server with: NorthstarManager.exe -dedicated")
     return True
 
 
@@ -436,7 +462,7 @@ def launcher():
         time.sleep(10)
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched  Origin succesfull")
 
-        script = [config.get('Launcher', 'filename')] + config.get('Launcher', 'arguments').split(" ") + sys.argv[1:]
+        script = [config['Launcher']['filename'].get()] + config['Launcher']['arguments'].get().split(" ") + sys.argv[1:]
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching {' '.join(script)}")
         subprocess.Popen(script, cwd=str(Path.cwd()))
     except FileNotFoundError:
@@ -444,5 +470,5 @@ def launcher():
 
 
 main()
-with open("updater_config.ini", "w+") as f:
-    config.write(f)
+with open("manager_config.yaml", "w+") as f:
+    f.write(config.dump())
