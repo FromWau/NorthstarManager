@@ -426,15 +426,6 @@ def main():
 def updater() -> bool:
     for section in config.keys().remove("GLOBAL", "Launcher"):
         try:
-            # match section:
-            #     case "NorthstarManager":
-            #         print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {section}...")
-            #         SelfUpdater(section).run()
-            #     case "Mods":
-            #         for mod in config[section]:
-            #             print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {mod.name}...")
-            #             ModUpdater(mod).run()
-
             if section == "NorthstarManager":
                 print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {section}...")
                 SelfUpdater(section).run()
