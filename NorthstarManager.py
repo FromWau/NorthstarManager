@@ -83,11 +83,9 @@ except ValueError:
 
 print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched NorthstarManager with {'no args' if len(args) == 0 else 'arguments:' + args}")
 config = confuse.Configuration("NorthstarManager", __name__)
-config.set_file('./manager_config.yaml')
-print(f"[{time.strftime('%H:%M:%S')}] [info]    Reading config from 'manager_config.yaml'...")
-config.read()
-if len(config.get()) == 0:
-    print(f"[{time.strftime('%H:%M:%S')}] [warning] 'manager_config.yaml' is empty or does not exist")
+
+
+def loaddefaultconf():
     print(f"[{time.strftime('%H:%M:%S')}] [info]    Using default config instead")
     config.set({
         'GLOBAL': {
@@ -96,7 +94,7 @@ if len(config.get()) == 0:
         'NorthstarManager': {
             'repository': 'FromWau/NorthstarManager',
             'last_update': '0001-01-01T00:00:00',
-            'ignore_prerelease': 'yes',
+            'ignore_prerelease': "'yes'",
             'file': 'NorthstarManager.exe',
             'install_dir': '.',
         },
@@ -104,7 +102,7 @@ if len(config.get()) == 0:
             'Northstar': {
                 'repository': 'R2Northstar/Northstar',
                 'last_update': '0001-01-01T00:00:00',
-                'ignore_prerelease': 'yes',
+                'ignore_prerelease': "'yes'",
                 'file': 'NorthstarLauncher.exe',
                 'install_dir': '.',
                 'exclude_files': ['ns_startup_args.txt', 'ns_startup_args_dedi.txt'],
@@ -116,6 +114,17 @@ if len(config.get()) == 0:
         },
     })
 
+
+print(f"[{time.strftime('%H:%M:%S')}] [info]    Reading config from 'manager_config.yaml'...")
+if not Path('./manager_config.yaml').exists():
+    print(f"[{time.strftime('%H:%M:%S')}] [warning] 'manager_config.yaml' does not exist")
+    loaddefaultconf()
+    with open("manager_config.yaml", "w+") as f:
+        f.write(config.dump())
+
+if len(config.get()) == 0:
+    print(f"[{time.strftime('%H:%M:%S')}] [warning] 'manager_config.yaml' is empty")
+    loaddefaultconf()
 
 token = config['GLOBAL']['github_token'].get()
 if len(token) == 0:
@@ -424,8 +433,10 @@ def main():
 
 
 def updater() -> bool:
-    for section in config.keys().remove("GLOBAL", "Launcher"):
+    for section in config.keys():
         try:
+            if section in ("GLOBAL", "Launcher"):
+                continue
             if section == "NorthstarManager":
                 print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {section}...")
                 SelfUpdater(section).run()
