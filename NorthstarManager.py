@@ -215,7 +215,7 @@ class SelfUpdater:
 
     @last_update.setter
     def last_update(self, value: datetime):
-        config.get()["Mods"][self.blockname]["last_update"] = value.isoformat()
+        config.get()[self.blockname]["last_update"] = value.isoformat()
 
     def release(self):
         releases = self.repo.get_releases()
