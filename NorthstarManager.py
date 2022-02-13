@@ -9,12 +9,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import confuse
-import pyaml
 import requests
 import yaml
 from github import Github
 from github.GitRelease import GitRelease
-from github.GithubException import RateLimitExceededException
+from github.GithubException import RateLimitExceededException, BadCredentialsException
 from tqdm import tqdm
 
 args = ""
@@ -92,7 +91,7 @@ def loaddefaultconf():
     print(f"[{time.strftime('%H:%M:%S')}] [info]    Using default config instead")
     config.set({
         'GLOBAL': {
-            'github_token': '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',
+            'github_token': '',
         },
         'Manager': {
             'repository': 'FromWau/NorthstarManager',
@@ -136,14 +135,19 @@ except ValueError:
     loaddefaultconf()
 
 token = config['GLOBAL']['github_token'].get(confuse.Optional(str, default=""))
-if len(token) == 0:
+try:
+    if len(token) == 0:
+        g = Github()
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    No configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+    else:
+        g = Github(token)
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    Using configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+except BadCredentialsException:
+    print(f"[{time.strftime('%H:%M:%S')}] [warning] GitHub Token invalid or maybe expired. Check on https://github.com/settings/tokens")
+    token = ""
     g = Github()
-    print(
-        f"[{time.strftime('%H:%M:%S')}] [info]    No configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
-else:
-    g = Github(token)
-    print(
-        f"[{time.strftime('%H:%M:%S')}] [info]    Using configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+    print(f"[{time.strftime('%H:%M:%S')}] [info]    Using no GitHub Token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+
 script_queue = []
 
 
