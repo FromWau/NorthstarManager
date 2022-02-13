@@ -1,5 +1,4 @@
-import array
-import confuse
+import json
 import shutil
 import subprocess
 import sys
@@ -8,7 +7,11 @@ import time
 import zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
+
+import confuse
+import pyaml
 import requests
+import yaml
 from github import Github
 from github.GitRelease import GitRelease
 from github.GithubException import RateLimitExceededException
@@ -89,12 +92,12 @@ def loaddefaultconf():
     print(f"[{time.strftime('%H:%M:%S')}] [info]    Using default config instead")
     config.set({
         'GLOBAL': {
-            'github_token': '',
+            'github_token': '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',
         },
-        'NorthstarManager': {
+        'Manager': {
             'repository': 'FromWau/NorthstarManager',
             'last_update': '0001-01-01T00:00:00',
-            'ignore_prerelease': "'yes'",
+            'ignore_prerelease': True,
             'file': 'NorthstarManager.exe',
             'install_dir': '.',
         },
@@ -102,7 +105,8 @@ def loaddefaultconf():
             'Northstar': {
                 'repository': 'R2Northstar/Northstar',
                 'last_update': '0001-01-01T00:00:00',
-                'ignore_prerelease': "'yes'",
+                'ignore_prerelease': True,
+                'ignore_updates': False,
                 'file': 'NorthstarLauncher.exe',
                 'install_dir': '.',
                 'exclude_files': ['ns_startup_args.txt', 'ns_startup_args_dedi.txt'],
@@ -116,17 +120,22 @@ def loaddefaultconf():
 
 
 print(f"[{time.strftime('%H:%M:%S')}] [info]    Reading config from 'manager_config.yaml'...")
-if not Path('./manager_config.yaml').exists():
+if not Path("manager_config.yaml").exists():
     print(f"[{time.strftime('%H:%M:%S')}] [warning] 'manager_config.yaml' does not exist")
     loaddefaultconf()
     with open("manager_config.yaml", "w+") as f:
         f.write(config.dump())
 
-if len(config.get()) == 0:
-    print(f"[{time.strftime('%H:%M:%S')}] [warning] 'manager_config.yaml' is empty")
+config.set_file("manager_config.yaml")
+config.read()
+try:
+    for i in ["Manager", "Launcher", "Mods"]:
+        config.keys().remove(i)
+except ValueError:
+    print(f"[{time.strftime('%H:%M:%S')}] [warning] 'manager_config.yaml' is empty or invalid")
     loaddefaultconf()
 
-token = config['GLOBAL']['github_token'].get()
+token = config['GLOBAL']['github_token'].get(confuse.Optional(str, default=""))
 if len(token) == 0:
     g = Github()
     print(
@@ -202,7 +211,7 @@ class SelfUpdater:
 
     @last_update.setter
     def last_update(self, value: datetime):
-        config[self.blockname]["last_update"].set(value.isoformat())
+        config.get()["Mods"][self.blockname]["last_update"] = value.isoformat()
 
     def release(self):
         releases = self.repo.get_releases()
@@ -265,26 +274,25 @@ class SelfUpdater:
 class ModUpdater:
     def __init__(self, blockname):
         self.blockname = blockname
-        self.repository = config[blockname]["repository"].get()
+        self.repository = config["Mods"][blockname]["repository"].get()
         self.repo = g.get_repo(self.repository)
-        self.ignore_updates = config[blockname]["ignore_updates"].get(confuse.Optional(bool, default=False))
+        self.ignore_updates = config["Mods"][blockname]["ignore_updates"].get(confuse.Optional(bool, default=False))
         if self.ignore_updates:
             print(f"[{time.strftime('%H:%M:%S')}] [info]    Search stopped for new releases  for {self.blockname}, ignore_updates flag is set")
             return
-        self.ignore_prerelease = config[blockname]["ignore_prerelease"].get(confuse.Optional(bool, default=True))
-        self.install_dir = Path(config[blockname]["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))
-        self._file = config[blockname]["file"].get(confuse.Optional(str, default="mod.json"))
+        self.ignore_prerelease = (config["Mods"][blockname]["ignore_prerelease"].get(confuse.Optional(bool, default=True)) == 'True')
+        self.install_dir = Path(config["Mods"][blockname]["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))
+        self._file = config["Mods"][blockname]["file"].get(confuse.Optional(str, default="mod.json"))
         self.file = (self.install_dir / self._file).resolve()
-        self.exclude_files = config[blockname]["exclude_files"].get(confuse.Optional(array, default=""))
-        print(f"exclude: {self.exclude_files}")
+        self.exclude_files = config["Mods"][blockname]["exclude_files"].get(confuse.Optional(list, default=[]))
 
     @property
     def last_update(self):
-        return datetime.fromisoformat(config[self.blockname]["last_update"])  # fallback=datetime.min.isoformat()
+        return datetime.fromisoformat(config["Mods"][self.blockname]["last_update"].get(confuse.Optional(datetime, default=datetime.min.isoformat())))
 
     @last_update.setter
     def last_update(self, value: datetime):
-        config[self.blockname]["last_update"].set(value.isoformat())
+        config.get()["Mods"][self.blockname]["last_update"] = value.isoformat()
 
     def release(self):
         releases = self.repo.get_releases()
@@ -383,50 +391,49 @@ class ModUpdater:
 
 
 def main():
-    # print(config.dump())
     try:
-        # if createServer:
-        #     current_dir = Path.cwd().resolve()
-        #     pass_args = " -updateAll -onlyUpdate"
-        #
-        #     script_queue.append(
-        #         f"echo [{time.strftime('%H:%M:%S')}] [info]    Started setup for dedicated Northstar server at {createServerPath} && "
-        #         f"echo [{time.strftime('%H:%M:%S')}] [info]    Copying TF2 files to new server location && "
-        #         f'xcopy "{current_dir}/__Installer" "{createServerPath}/__Installer/" /s /e /q /I && '
-        #         f'xcopy "{current_dir}/bin" "{createServerPath}/bin/" /s /e /q /I && '
-        #         f'xcopy "{current_dir}/Core" "{createServerPath}/Core/" /s /e /q /I && '
-        #         f'xcopy "{current_dir}/platform" "{createServerPath}/platform/" /s /e /q /I && '
-        #         f'xcopy "{current_dir}/Support" "{createServerPath}/Support/" /s /e /q /I && '
-        #         f'xcopy "{current_dir}\\build.txt" "{createServerPath}" /q && '
-        #         f'xcopy "{current_dir}\\gameversion.txt" "{createServerPath}" /q && '
-        #         f'xcopy "{current_dir}\\server.dll" "{createServerPath}" /q && '
-        #         f'xcopy "{current_dir}\\Titanfall2.exe" "{createServerPath}" /q && '
-        #         f'xcopy "{current_dir}\\Titanfall2_trial.exe" "{createServerPath}" /q && '
-        #         f"echo [{time.strftime('%H:%M:%S')}] [info]    Creating a junction for vpk and r2 && "
-        #         f'mklink /j "{createServerPath}/vpk" "{current_dir}/vpk" && '
-        #         f'mklink /j "{createServerPath}/r2" "{current_dir}/r2" && '
-        #         f"echo [{time.strftime('%H:%M:%S')}] [info]    Copying NorthstarManager to new server location && "
-        #         f'xcopy "{current_dir}\\NorthstarManager.exe" "{createServerPath}" /q  && '
-        #         f"echo [{time.strftime('%H:%M:%S')}] [info]    Launch initial setup for NorthstarManager.exe{pass_args}  && "
-        #         f'"{createServerPath}/NorthstarManager.exe"{pass_args} && '
-        #         f"echo [{time.strftime('%H:%M:%S')}] [info]    Successfully setup dedicated Northstar server. Run dedicated server with: NorthstarManager.exe -dedicated"
-        #     )
-        #     raise HaltandRunScripts("restart manager")
+        if createServer:
+            current_dir = Path.cwd().resolve()
+            pass_args = " -updateAll -onlyUpdate"
+
+            script_queue.append(
+                f"echo [{time.strftime('%H:%M:%S')}] [info]    Started setup for dedicated Northstar server at {createServerPath} && "
+                f"echo [{time.strftime('%H:%M:%S')}] [info]    Copying TF2 files to new server location && "
+                f'xcopy "{current_dir}/__Installer" "{createServerPath}/__Installer/" /s /e /q /I && '
+                f'xcopy "{current_dir}/bin" "{createServerPath}/bin/" /s /e /q /I && '
+                f'xcopy "{current_dir}/Core" "{createServerPath}/Core/" /s /e /q /I && '
+                f'xcopy "{current_dir}/platform" "{createServerPath}/platform/" /s /e /q /I && '
+                f'xcopy "{current_dir}/Support" "{createServerPath}/Support/" /s /e /q /I && '
+                f'xcopy "{current_dir}\\build.txt" "{createServerPath}" /q && '
+                f'xcopy "{current_dir}\\gameversion.txt" "{createServerPath}" /q && '
+                f'xcopy "{current_dir}\\server.dll" "{createServerPath}" /q && '
+                f'xcopy "{current_dir}\\Titanfall2.exe" "{createServerPath}" /q && '
+                f'xcopy "{current_dir}\\Titanfall2_trial.exe" "{createServerPath}" /q && '
+                f"echo [{time.strftime('%H:%M:%S')}] [info]    Creating a junction for vpk and r2 && "
+                f'mklink /j "{createServerPath}/vpk" "{current_dir}/vpk" && '
+                f'mklink /j "{createServerPath}/r2" "{current_dir}/r2" && '
+                f"echo [{time.strftime('%H:%M:%S')}] [info]    Copying NorthstarManager to new server location && "
+                f'xcopy "{current_dir}\\NorthstarManager.exe" "{createServerPath}" /q  && '
+                f"echo [{time.strftime('%H:%M:%S')}] [info]    Launch initial setup for NorthstarManager.exe{pass_args}  && "
+                f'"{createServerPath}/NorthstarManager.exe"{pass_args} && '
+                f"echo [{time.strftime('%H:%M:%S')}] [info]    Successfully setup dedicated Northstar server. Run dedicated server with: NorthstarManager.exe -dedicated"
+            )
+            raise HaltandRunScripts("restart manager")
 
         if showhelp:
             printhelp()
             return
 
-        # if onlyLaunch:
-        #     launcher()
-        #     return
+        if onlyLaunch:
+            launcher()
+            return
 
-        while not updater():  # restart for github rate error
+        while not updater():  # restart when encountering a GitHub rate error
             print(f"[{time.strftime('%H:%M:%S')}] [info]    Waiting and restarting Updater in 60s...")
             time.sleep(60)
 
-        # if not onlyUpdate:
-        #     launcher()
+        if not onlyUpdate:
+            launcher()
     except HaltandRunScripts:
         for script in script_queue:
             subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
@@ -437,12 +444,13 @@ def updater() -> bool:
         try:
             if section in ("GLOBAL", "Launcher"):
                 continue
-            if section == "NorthstarManager" and not updateAllIgnoreManager:
+            if section == "Manager" and not updateAllIgnoreManager:
                 print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {section}...")
                 SelfUpdater(section).run()
             if section == "Mods":
                 for mod in config[section]:
-                    print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {mod.name}...")
+                    print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {mod}...")
+                    ModUpdater(mod).run()
 
         except RateLimitExceededException:
             print(f"[{time.strftime('%H:%M:%S')}] [warning] GitHub rate exceeded for {section}")
@@ -457,14 +465,14 @@ def updater() -> bool:
 
 
 def launcher():
+    script = '"C:/Program Files (x86)/Origin/Origin.exe"'
     try:
-        script = '"C:/Program Files (x86)/Origin/Origin.exe"'
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching Origin and waiting 10sec...")
         subprocess.Popen(script, cwd=str(Path.cwd()))
         time.sleep(10)
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched  Origin succesfull")
 
-        script = [config['Launcher']['filename'].get()] + config['Launcher']['arguments'].get().split(" ") + sys.argv[1:]
+        script = [config['Launcher']['filename'].get()] + config['Launcher']['argumnets'].get().split(" ") + sys.argv[1:]
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching {' '.join(script)}")
         subprocess.Popen(script, cwd=str(Path.cwd()))
     except FileNotFoundError:
@@ -473,4 +481,4 @@ def launcher():
 
 main()
 with open("manager_config.yaml", "w+") as f:
-    f.write(config.dump())
+    yaml.dump(json.loads(json.dumps(config.get())), f, allow_unicode=True)
