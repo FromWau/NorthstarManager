@@ -21,7 +21,7 @@ Settings that persist for all other sections.
 ## Launcher
 | Flag | Expected Value | Description |
 | --- | --- | --- |
-| arguments | launcher arguments | Expects TF2 launcher arguments or the arguments from the launcher arguments section. Multiple arguments can be separated by space. |
+| arguments | launcher arguments | Expects TF2 launcher arguments or the arguments from the [launcher arguments section](#launcher-arguments)). Multiple arguments can be separated by space. |
 | filename | Path to file | Path to NorthstarLauncher.exe |
 
 ## Manager
