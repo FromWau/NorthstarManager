@@ -89,6 +89,14 @@ try:
 except ValueError:
     pass
 
+onlyUpdateClient = False
+try:
+    i = sys.argv.index("-onlyUpdateClient")
+    args += " " + sys.argv.pop(i)
+    onlyUpdateClient = True
+except ValueError:
+    pass
+
 
 print(
     f"[{time.strftime('%H:%M:%S')}] [info]    Launched NorthstarManager with {'no args' if len(args) == 0 else 'arguments:' + args}")
@@ -489,12 +497,12 @@ def updater() -> bool:
                 yamlpath = [section]
                 print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
                 ManagerUpdater(yamlpath).run()
-            if section == "Mods" and not onlyUpdateServers:
+            if section == "Mods" and not onlyUpdateServers and onlyUpdateClient:
                 for mod in config[section]:
                     yamlpath = [section, mod]
                     print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
                     ModUpdater(yamlpath).run()
-            if section == "Servers":
+            if section == "Servers" and not onlyUpdateClient:
                 if not config[section]["enabled"].get(confuse.Optional(bool, default=True)):
                     continue
                 for server in config[section]:
