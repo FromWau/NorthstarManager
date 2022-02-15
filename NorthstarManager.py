@@ -65,29 +65,27 @@ try:
 except ValueError:
     pass
 
-# createServer = False
-# createServerPath = ""
-# try:
-#     i = sys.argv.index("-createServer")
-#     sp = sys.argv[i + 1:i + 2][0]
-#     if Path(sp).exists():
-#         args += " " + sys.argv.pop(i)
-#         createServerPath = sys.argv.pop(sys.argv.index(sp))
-#         args += " " + createServerPath
-#         createServer = True
-#     else:
-#         print(
-#             f"[{time.strftime('%H:%M:%S')}] [warning] Arg -createServer given file location does not exist{createServerPath}")
-# except IndexError:
-#     print(f"[{time.strftime('%H:%M:%S')}] [warning] Arg -createServer is missing the location for the server")
-# except ValueError:
-#     pass
+updateServers = False  # update servers, ignoring enable flags
+try:
+    i = sys.argv.index("-updateServers")
+    args += " " + sys.argv.pop(i)
+    updateServers = True
+except ValueError:
+    pass
 
 killOrigin = False
 try:
     i = sys.argv.index("-killOrigin")
     args += " " + sys.argv.pop(i)
     killOrigin = True
+except ValueError:
+    pass
+
+onlyUpdateServers = False
+try:
+    i = sys.argv.index("-onlyUpdateServers")
+    args += " " + sys.argv.pop(i)
+    onlyUpdateServers = True
 except ValueError:
     pass
 
@@ -194,36 +192,6 @@ def download(url, download_file):
                 download_file.write(data)
 
 
-def createserver(serverpath):
-    current_dir = Path.cwd().resolve()
-    pass_args = " -updateAll -onlyUpdate"
-
-    script_queue.append(
-        f"echo [{time.strftime('%H:%M:%S')}] [info]    Started setup for dedicated Northstar server at {serverpath} && "
-        f"echo [{time.strftime('%H:%M:%S')}] [info]    Copying TF2 files to new server location && "
-        f'xcopy "{current_dir}/__Installer" "{serverpath}/__Installer/" /s /e /q /I && '
-        f'xcopy "{current_dir}/bin" "{serverpath}/bin/" /s /e /q /I && '
-        f'xcopy "{current_dir}/Core" "{serverpath}/Core/" /s /e /q /I && '
-        f'xcopy "{current_dir}/platform" "{serverpath}/platform/" /s /e /q /I && '
-        f'xcopy "{current_dir}/Support" "{serverpath}/Support/" /s /e /q /I && '
-        f'xcopy "{current_dir}\\build.txt" "{serverpath}" /q && '
-        f'xcopy "{current_dir}\\gameversion.txt" "{serverpath}" /q && '
-        f'xcopy "{current_dir}\\server.dll" "{serverpath}" /q && '
-        f'xcopy "{current_dir}\\Titanfall2.exe" "{serverpath}" /q && '
-        f'xcopy "{current_dir}\\Titanfall2_trial.exe" "{serverpath}" /q && '
-        f"echo [{time.strftime('%H:%M:%S')}] [info]    Creating a junction for vpk and r2 && "
-        f'mklink /j "{serverpath}/vpk" "{current_dir}/vpk" && '
-        f'mklink /j "{serverpath}/r2" "{current_dir}/r2" && '
-        f"echo [{time.strftime('%H:%M:%S')}] [info]    Copying NorthstarManager to new server location && "
-        f'xcopy "{current_dir}\\NorthstarManager.exe" "{serverpath}" /q  && '
-        f"echo [{time.strftime('%H:%M:%S')}] [info]    Launch initial setup for NorthstarManager.exe{pass_args}  && "
-        f'cd /d "{serverpath}" && '
-        f'"NorthstarManager.exe"{pass_args} && '
-        f"echo [{time.strftime('%H:%M:%S')}] [info]    Successfully setup dedicated Northstar server. Run dedicated server with: NorthstarManager.exe -dedicated"
-    )
-    raise HaltandRunScripts("restart manager")
-
-
 def install_tf2(installpath):
     originpath = Path.cwd()
     scripts = [
@@ -245,6 +213,10 @@ def install_tf2(installpath):
     for script in scripts:
         subprocess.Popen(script, cwd=str(Path.cwd()), shell=True).wait()
     print(f"[{time.strftime('%H:%M:%S')}] [info]    Successfully setup dedicated Northstar server. Run dedicated server with: 'cd /d {installpath.absolute()}; ./NorthstarManager.exe -dedicated'")
+
+
+def sort_gitrelease(release: GitRelease):
+    return release.published_at
 
 
 class NoValidRelease(Exception):
@@ -291,7 +263,8 @@ class ManagerUpdater:
         config.get()[self.blockname]["last_update"] = value.isoformat()
 
     def release(self):
-        releases = self.repo.get_releases()
+        releases = list(self.repo.get_releases())
+        releases.sort(reverse=True, key=sort_gitrelease)
         for release in releases:
             if release.prerelease and self.ignore_prerelease:
                 continue
@@ -387,7 +360,8 @@ class ModUpdater:
         self.yamlpath.get()["last_update"] = value.isoformat()
 
     def release(self):
-        releases = self.repo.get_releases()
+        releases = list(self.repo.get_releases())
+        releases.sort(reverse=True, key=sort_gitrelease)
         for release in releases:
             if release.prerelease and self.ignore_prerelease:
                 continue
@@ -397,7 +371,6 @@ class ModUpdater:
             if self._file != "mod.json":
                 if not self.file.exists() or self._file != "NorthstarLauncher.exe":
                     return release
-            break  # stop search wenn aktuellere Version vorhanden ist
         raise NoValidRelease("Found No new releases")
 
     def asset(self, release: GitRelease) -> str:
@@ -510,37 +483,13 @@ def updater() -> bool:
     yamlpath = []
     for section in config.keys():
         try:
-            # match case not usable due to nuitka
-            # match section:
-            #     case ("GLOBAL", "Launcher"):
-            #         continue
-            #     case "Manager":
-            #         if updateAllIgnoreManager:
-            #             continue
-            #         yamlpath = [section]
-            #         print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
-            #         ManagerUpdater(section).run()
-            #     case "Mods":
-            #         for mod in config[section]:
-            #             yamlpath = [section, mod]
-            #             print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
-            #             ModUpdater(yamlpath).run()
-            #     case "Servers":
-            #         for server in config[section]:
-            #             for mod in config[section][server]["Mods"]:
-            #                 yamlpath = [section, server, "Mods", mod]
-            #                 print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
-            #                 ModUpdater(yamlpath).run()
-            #     case _ as yamlsection:
-            #         print(f"[{time.strftime('%H:%M:%S')}] [warning] Yaml section {yamlsection}")
-
             if section in ("GLOBAL", "Launcher"):
                 continue
-            if section == "Manager" and not updateAllIgnoreManager:
+            if section == "Manager" and not updateAllIgnoreManager and not onlyUpdateServers:
                 yamlpath = [section]
                 print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
                 ManagerUpdater(yamlpath).run()
-            if section == "Mods":
+            if section == "Mods" and not onlyUpdateServers:
                 for mod in config[section]:
                     yamlpath = [section, mod]
                     print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
@@ -550,17 +499,18 @@ def updater() -> bool:
                     continue
                 for server in config[section]:
                     if server != "enabled":
-                        if not config[section][server]["enabled"].get(confuse.Optional(bool, default=True)):
-                            continue
-                        for mod in config[section][server]["Mods"]:
-                            yamlpath = [section, server, "Mods", mod]
-                            print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
-                            ModUpdater(yamlpath).run()
-                        # check if titanfall2.exe exists in server dir
-                        print("good here")
-                        server_path = Path(config[section][server]["dir"].get(confuse.Optional(str, default=f"./servers/{server}")))
-                        if not server_path.joinpath("Titanfall2.exe").exists():
-                            install_tf2(server_path)
+                        if not updateServers:
+                            if not config[section][server]["enabled"].get(confuse.Optional(bool, default=True)):
+                                continue
+                            for mod in config[section][server]["Mods"]:
+                                yamlpath = [section, server, "Mods", mod]
+                                print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
+                                ModUpdater(yamlpath).run()
+                            # check if titanfall2.exe exists in server dir
+                            print("good here")
+                            server_path = Path(config[section][server]["dir"].get(confuse.Optional(str, default=f"./servers/{server}")))
+                            if not server_path.joinpath("Titanfall2.exe").exists():
+                                install_tf2(server_path)
 
         except RateLimitExceededException:
             print(f"[{time.strftime('%H:%M:%S')}] [warning] GitHub rate exceeded for {'/'.join(yamlpath)}")
@@ -595,9 +545,10 @@ def launcher():
         if killOrigin:
             ns.wait()
             origin.terminate()
-
     except FileNotFoundError:
         print(f"[{time.strftime('%H:%M:%S')}] [warning] Could not run {' '.join(script)}")
+    except WindowsError:
+        print(f"[{time.strftime('%H:%M:%S')}] [warning] Could not kill Origin")
 
 
 main()
