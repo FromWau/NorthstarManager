@@ -1,5 +1,4 @@
 import json
-import pprint
 import shutil
 import subprocess
 import sys
@@ -66,23 +65,32 @@ try:
 except ValueError:
     pass
 
-createServer = False
-createServerPath = ""
+# createServer = False
+# createServerPath = ""
+# try:
+#     i = sys.argv.index("-createServer")
+#     sp = sys.argv[i + 1:i + 2][0]
+#     if Path(sp).exists():
+#         args += " " + sys.argv.pop(i)
+#         createServerPath = sys.argv.pop(sys.argv.index(sp))
+#         args += " " + createServerPath
+#         createServer = True
+#     else:
+#         print(
+#             f"[{time.strftime('%H:%M:%S')}] [warning] Arg -createServer given file location does not exist{createServerPath}")
+# except IndexError:
+#     print(f"[{time.strftime('%H:%M:%S')}] [warning] Arg -createServer is missing the location for the server")
+# except ValueError:
+#     pass
+
+killOrigin = False
 try:
-    i = sys.argv.index("-createServer")
-    sp = sys.argv[i + 1:i + 2][0]
-    if Path(sp).exists():
-        args += " " + sys.argv.pop(i)
-        createServerPath = sys.argv.pop(sys.argv.index(sp))
-        args += " " + createServerPath
-        createServer = True
-    else:
-        print(
-            f"[{time.strftime('%H:%M:%S')}] [warning] Arg -createServer given file location does not exist{createServerPath}")
-except IndexError:
-    print(f"[{time.strftime('%H:%M:%S')}] [warning] Arg -createServer is missing the location for the server")
+    i = sys.argv.index("-killOrigin")
+    args += " " + sys.argv.pop(i)
+    killOrigin = True
 except ValueError:
     pass
+
 
 print(
     f"[{time.strftime('%H:%M:%S')}] [info]    Launched NorthstarManager with {'no args' if len(args) == 0 else 'arguments:' + args}")
@@ -266,8 +274,7 @@ class ManagerUpdater:
         self.repo = g.get_repo(self.repository)
         self.ignore_updates = yamlpath["ignore_updates"].get(confuse.Optional(bool, default=False))
         if self.ignore_updates:
-            print(
-                f"[{time.strftime('%H:%M:%S')}] [info]    Search stopped for new releases  for {self.blockname}, ignore_updates flag is set")
+            print(f"[{time.strftime('%H:%M:%S')}] [info]    Search stopped for new releases  for {self.blockname}, ignore_updates flag is set")
             return
         self.ignore_prerelease = yamlpath["ignore_prerelease"].get(confuse.Optional(bool, default=True))
         self.install_dir = Path(yamlpath["install_dir"].get(confuse.Optional(str, default=".")))
@@ -276,7 +283,8 @@ class ManagerUpdater:
 
     @property
     def last_update(self):
-        return datetime.fromisoformat(config[self.blockname]["last_update"])  # fallback=datetime.min.isoformat()
+        return datetime.fromisoformat(str(
+            self.yamlpath["last_update"].get(confuse.Optional(str, default=datetime.min.isoformat()))))
 
     @last_update.setter
     def last_update(self, value: datetime):
@@ -330,7 +338,8 @@ class ManagerUpdater:
         pass_args = " -onlyUpdate" if onlyUpdate else ""
         pass_args += " -dedicated" if asdedicated else ""
         pass_args += " -updateAllIgnoreManager" if updateAll else ""
-
+        pass_args += " ".join(sys.argv[1:])
+        print("pass args for reboot not working porperly")
         script_queue.append(
             f"echo [{time.strftime('%H:%M:%S')}] [info]    Running self-replacer            for {self.blockname} && "
             f"timeout /t 5 && "
@@ -346,28 +355,32 @@ class ManagerUpdater:
 class ModUpdater:
     def __init__(self, path):
         yamlpath = config
+        serverpath = ''
+        pre_index = ''
         for index in path:
+            if pre_index == "Servers":
+                serverpath = Path(config[pre_index][index]["dir"].get(confuse.Optional(str, default=".")))
             yamlpath = yamlpath[index]
+
         self.yamlpath = yamlpath
         self.blockname = path[-1]
         self.repository = self.yamlpath["repository"].get()
         self.repo = g.get_repo(self.repository)
         self.ignore_updates = self.yamlpath["ignore_updates"].get(confuse.Optional(bool, default=False))
         if self.ignore_updates:
-            print(
-                f"[{time.strftime('%H:%M:%S')}] [info]    Search stopped for new releases  for {self.blockname}, ignore_updates flag is set")
+            print(f"[{time.strftime('%H:%M:%S')}] [info]    Search stopped for new releases  for {self.blockname}, ignore_updates flag is set")
             return
         self.ignore_prerelease = (
-                self.yamlpath["ignore_prerelease"].get(confuse.Optional(bool, default=True)) == 'True')
-        self.install_dir = Path(self.yamlpath["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))
+                self.yamlpath["ignore_prerelease"].get(confuse.Optional(bool, default=True)))
+        self.install_dir = Path(serverpath).joinpath(self.yamlpath["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))  # check if server mods don't get installed under client location
         self._file = self.yamlpath["file"].get(confuse.Optional(str, default="mod.json"))
         self.file = (self.install_dir / self._file).resolve()
         self.exclude_files = self.yamlpath["exclude_files"].get(confuse.Optional(list, default=[]))
 
     @property
     def last_update(self):
-        return datetime.fromisoformat(
-            self.yamlpath["last_update"].get(confuse.Optional(datetime, default=datetime.min.isoformat())))
+        return datetime.fromisoformat(str(
+            self.yamlpath["last_update"].get(confuse.Optional(str, default=str(datetime.min.isoformat())))))
 
     @last_update.setter
     def last_update(self, value: datetime):
@@ -530,19 +543,24 @@ def updater() -> bool:
             if section == "Mods":
                 for mod in config[section]:
                     yamlpath = [section, mod]
-                    print(
-                        f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
+                    print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
                     ModUpdater(yamlpath).run()
             if section == "Servers":
+                if not config[section]["enabled"].get(confuse.Optional(bool, default=True)):
+                    continue
                 for server in config[section]:
-                    for mod in config[section][server]["Mods"]:
-                        yamlpath = [section, server, "Mods", mod]
-                        print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
-                        ModUpdater(yamlpath).run()
-                    # check if titanfall2.exe exists in server dir
-                    server_path = Path(config[section][server]["dir"].get())
-                    if not server_path.joinpath("Titanfall2.exe").exists():
-                        install_tf2(server_path)
+                    if server != "enabled":
+                        if not config[section][server]["enabled"].get(confuse.Optional(bool, default=True)):
+                            continue
+                        for mod in config[section][server]["Mods"]:
+                            yamlpath = [section, server, "Mods", mod]
+                            print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
+                            ModUpdater(yamlpath).run()
+                        # check if titanfall2.exe exists in server dir
+                        print("good here")
+                        server_path = Path(config[section][server]["dir"].get(confuse.Optional(str, default=f"./servers/{server}")))
+                        if not server_path.joinpath("Titanfall2.exe").exists():
+                            install_tf2(server_path)
 
         except RateLimitExceededException:
             print(f"[{time.strftime('%H:%M:%S')}] [warning] GitHub rate exceeded for {'/'.join(yamlpath)}")
@@ -559,22 +577,27 @@ def updater() -> bool:
 
 
 def launcher():
-    script = '"C:/Program Files (x86)/Origin/Origin.exe"'
+    script = [
+        '"C:/Program Files (x86)/Origin/Origin.exe"'
+    ]
     try:
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching Origin and waiting 10sec...")
-        subprocess.Popen(script, cwd=str(Path.cwd()))
+        origin = subprocess.Popen(script, cwd=str(Path.cwd()))
         time.sleep(10)
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched  Origin succesfull")
 
-        script = [config['Launcher']['filename'].get()] + config['Launcher']['argumnets'].get().split(" ") + sys.argv[
-                                                                                                             1:]
+        script = [
+            f'"{config["Launcher"]["filename"].get()}"{config["Launcher"]["argumnets"].get()}{" ".join(sys.argv[1:])}'
+        ]
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching {' '.join(script)}")
-        subprocess.Popen(script, cwd=str(Path.cwd()))
+        ns = subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
 
-        # taskkill /IM "origin.exe" /F
-        # wait for Launcher to finish
+        if killOrigin:
+            ns.wait()
+            origin.terminate()
+
     except FileNotFoundError:
-        print(f"[{time.strftime('%H:%M:%S')}] [warning] Could not run {script}")
+        print(f"[{time.strftime('%H:%M:%S')}] [warning] Could not run {' '.join(script)}")
 
 
 main()
