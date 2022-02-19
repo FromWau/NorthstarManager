@@ -1,4 +1,5 @@
 import json
+import psutil
 import shutil
 import subprocess
 import sys
@@ -19,7 +20,7 @@ from tqdm import tqdm
 args = ""
 showhelp = False
 try:
-    i = sys.argv.index("-help")
+    i = sys.argv.index("-help")  # print help and quit
     args += " " + sys.argv.pop(i)
     showhelp = True
 except ValueError:
@@ -27,7 +28,7 @@ except ValueError:
 
 updateAll = False
 try:
-    i = sys.argv.index("-updateAll")
+    i = sys.argv.index("-updateAll")  # Updates manager then relaunches manager with args -updateAllIgnoreManager
     args += " " + sys.argv.pop(i)
     updateAll = True
 except ValueError:
@@ -35,7 +36,7 @@ except ValueError:
 
 updateAllIgnoreManager = False
 try:
-    i = sys.argv.index("-updateAllIgnoreManager")
+    i = sys.argv.index("-updateAllIgnoreManager")  # everything in yaml configurated will get updated
     args += " " + sys.argv.pop(i)
     updateAllIgnoreManager = True
 except ValueError:
@@ -43,7 +44,7 @@ except ValueError:
 
 onlyUpdate = False
 try:
-    i = sys.argv.index("-onlyUpdate")
+    i = sys.argv.index("-onlyUpdate")  # run updates withoput launching
     args += " " + sys.argv.pop(i)
     onlyUpdate = True
 except ValueError:
@@ -51,33 +52,17 @@ except ValueError:
 
 onlyLaunch = False
 try:
-    i = sys.argv.index("-onlyLaunch")
+    i = sys.argv.index("-onlyLaunch")  # no updates and runs launcher
     args += " " + sys.argv.pop(i)
     onlyLaunch = True
 except ValueError:
     pass
 
-asdedicated = False
+updateServers = False
 try:
-    i = sys.argv.index("-dedicated")
-    args += " " + sys.argv.pop(i)
-    onlyLaunch = True
-except ValueError:
-    pass
-
-updateServers = False  # update servers, ignoring enable flags
-try:
-    i = sys.argv.index("-updateServers")
+    i = sys.argv.index("-updateServers")  # update servers, ignoring enable flags
     args += " " + sys.argv.pop(i)
     updateServers = True
-except ValueError:
-    pass
-
-killOrigin = False
-try:
-    i = sys.argv.index("-killOrigin")
-    args += " " + sys.argv.pop(i)
-    killOrigin = True
 except ValueError:
     pass
 
@@ -98,8 +83,7 @@ except ValueError:
     pass
 
 
-print(
-    f"[{time.strftime('%H:%M:%S')}] [info]    Launched NorthstarManager with {'no args' if len(args) == 0 else 'arguments:' + args}")
+print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched NorthstarManager with {'no args' if len(args) == 0 else 'arguments:' + args}")
 config = confuse.Configuration("NorthstarManager", __name__)
 
 
@@ -180,7 +164,6 @@ def printhelp():
         "-updateAll ............ updates all repos defined in the 'config_updater.ini' to the latest release regardless of maybe being the latest release, ignoring flags: 'ignore_updates'\n"
         "-onlyUpdate ........... only runs the updater without launching the defined launcher in the 'config_updater.ini'\n"
         "-onlyLaunch ........... only launches the defined launcher in the 'config_updater.ini', without updating\n"
-        "-dedicated ............ runs the laucnher as dedicated server\n"
         "\n"
         "Northstar Client/ vanilla TF2 args should be put into the ns_startup_args.txt or ns_startup_args_dedi.txt for dedicated servers\n"
         "All Northstar launch arguments can be found at the official wiki: https://r2northstar.gitbook.io/r2northstar-wiki/using-northstar/launch-arguments \n"
@@ -317,7 +300,6 @@ class ManagerUpdater:
             f"[{time.strftime('%H:%M:%S')}] [info]    Stopped Updater and rerun new Version of {self.blockname} after install")
 
         pass_args = " -onlyUpdate" if onlyUpdate else ""
-        pass_args += " -dedicated" if asdedicated else ""
         pass_args += " -updateAllIgnoreManager" if updateAll else ""
         pass_args += " ".join(sys.argv[1:])
         print("pass args for reboot not working porperly")
@@ -489,15 +471,13 @@ def main():
 
 def updater() -> bool:
     yamlpath = []
-    for section in config.keys():
+    for section in [s for s in config.keys() if s not in ["Example", "Launcher"]]:
         try:
-            if section in ("GLOBAL", "Launcher"):
-                continue
             if section == "Manager" and not updateAllIgnoreManager and not onlyUpdateServers:
                 yamlpath = [section]
                 print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
                 ManagerUpdater(yamlpath).run()
-            if section == "Mods" and not onlyUpdateServers and onlyUpdateClient:
+            if section == "Mods" and not onlyUpdateServers:
                 for mod in config[section]:
                     yamlpath = [section, mod]
                     print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
@@ -515,15 +495,13 @@ def updater() -> bool:
                                 print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
                                 ModUpdater(yamlpath).run()
                             # check if titanfall2.exe exists in server dir
-                            print("good here")
                             server_path = Path(config[section][server]["dir"].get(confuse.Optional(str, default=f"./servers/{server}")))
                             if not server_path.joinpath("Titanfall2.exe").exists():
                                 install_tf2(server_path)
 
         except RateLimitExceededException:
             print(f"[{time.strftime('%H:%M:%S')}] [warning] GitHub rate exceeded for {'/'.join(yamlpath)}")
-            print(
-                f"[{time.strftime('%H:%M:%S')}] [info]    Available requests left {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+            print(f"[{time.strftime('%H:%M:%S')}] [info]    Available requests left {g.rate_limiting[0]}/{g.rate_limiting[1]}")
             if "y" != input("Wait and try update again in 60sec? (y/n) "):
                 break
             return False
@@ -535,28 +513,20 @@ def updater() -> bool:
 
 
 def launcher():
-    script = [
-        '"C:/Program Files (x86)/Origin/Origin.exe"'
-    ]
+    script = "C:/Program Files (x86)/Origin/Origin.exe"
     try:
-        print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching Origin and waiting 10sec...")
-        origin = subprocess.Popen(script, cwd=str(Path.cwd()))
-        time.sleep(10)
-        print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched  Origin succesfull")
+        if "Origin.exe" not in (p.name() for p in psutil.process_iter()):
+            print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching Origin and waiting 10sec...")
+            subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
+            time.sleep(10)
+            print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched  Origin succesfull")
 
-        script = [
-            f'"{config["Launcher"]["filename"].get()}"{config["Launcher"]["argumnets"].get()}{" ".join(sys.argv[1:])}'
-        ]
-        print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching {' '.join(script)}")
-        ns = subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
+        script = f'"{config["Launcher"]["filename"].get()}"{config["Launcher"]["argumnets"].get()}{" ".join(sys.argv[1:])}'
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching {script}")
+        subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
 
-        if killOrigin:
-            ns.wait()
-            origin.terminate()
     except FileNotFoundError:
-        print(f"[{time.strftime('%H:%M:%S')}] [warning] Could not run {' '.join(script)}")
-    except WindowsError:
-        print(f"[{time.strftime('%H:%M:%S')}] [warning] Could not kill Origin")
+        print(f"[{time.strftime('%H:%M:%S')}] [warning] Could not run {script}")
 
 
 main()
