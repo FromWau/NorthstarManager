@@ -137,7 +137,6 @@ except ValueError:
 
 
 token = config['Global']['github_token'].get(confuse.Optional(str, default=""))
-print(token)
 try:
     if len(token) == 0:
         g = Github()
