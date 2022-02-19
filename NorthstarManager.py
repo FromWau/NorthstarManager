@@ -1,4 +1,5 @@
-import json
+import confuse
+import ruamel.yaml
 import psutil
 import shutil
 import subprocess
@@ -9,9 +10,7 @@ import zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import confuse
 import requests
-import yaml
 from github import Github
 from github.GitRelease import GitRelease
 from github.GithubException import RateLimitExceededException, BadCredentialsException
@@ -84,58 +83,61 @@ except ValueError:
 
 
 print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched NorthstarManager with {'no args' if len(args) == 0 else 'arguments:' + args}")
-config = confuse.Configuration("NorthstarManager", __name__)
 
-
-def loaddefaultconf():
-    print(f"[{time.strftime('%H:%M:%S')}] [info]    Using default config instead")
-    config.set({
-        'GLOBAL': {
-            'github_token': '',
-        },
-        'Launcher': {
-            'argumnets': '',
-            'filename': 'NorthstarLauncher.exe',
-        },
-        'Manager': {
-            'file': 'NorthstarManager.exe',
-            'ignore_prerelease': True,
-            'install_dir': '.',
-            'last_update': '0001-01-01T00:00:00',
-            'repository': 'FromWau/NorthstarManager',
-        },
-        'Mods': {
-            'Northstar': {
-                'exclude_files': ['ns_startup_args.txt', 'ns_startup_args_dedi.txt'],
-                'file': 'NorthstarLauncher.exe',
-                'ignore_prerelease': True,
-                'ignore_updates': False,
-                'install_dir': '.',
-                'last_update': '0001-01-01T00:00:00',
-                'repository': 'R2Northstar/Northstar',
-            }
-        },
-
-    })
-
+yaml = ruamel.yaml.YAML()
+yaml.indent(mapping=4, sequence=2, offset=0)
+global conf_comments
 
 print(f"[{time.strftime('%H:%M:%S')}] [info]    Reading config from 'manager_config.yaml'...")
 if not Path("manager_config.yaml").exists():
     print(f"[{time.strftime('%H:%M:%S')}] [warning] 'manager_config.yaml' does not exist")
-    loaddefaultconf()
-    with open("manager_config.yaml", "w+") as f:
-        f.write(config.dump())
+    print(f"[{time.strftime('%H:%M:%S')}] [info]    Using default config instead")
+    default_conf = """\
+# This is the default config
+# ==========================  
+Global:
+    # set github token here
+    github_token:   
 
-config.set_file("manager_config.yaml")
-config.read()
+Launcher:
+    filename: NorthstarLauncher.exe
+    argumnets:
+
+Manager:
+    file: NorthstarManager.exe
+    install_dir: .
+    last_update: '0001-01-01T00:00:00'
+    repository: FromWau/NorthstarManager
+
+Mods:
+    Northstar:
+        exclude_files:
+            - ns_startup_args.txt
+            - ns_startup_args_dedi.txt
+        file: NorthstarLauncher.exe
+        ignore_prerelease: True
+        ignore_updates: False
+        install_dir: .
+        last_update: '0001-01-01T00:00:00'
+        repository: R2Northstar/Northstar
+"""
+    conf_comments = ruamel.yaml.load(default_conf, ruamel.yaml.RoundTripLoader)
+else:
+    with open("manager_config.yaml", "r") as f:
+        conf_comments = yaml.load(f)
+
+config = confuse.Configuration("NorthstarManager", __name__)
+config.set(conf_comments)
+
 try:
     for i in ["Manager", "Launcher", "Mods"]:
         config.keys().remove(i)
 except ValueError:
     print(f"[{time.strftime('%H:%M:%S')}] [warning] 'manager_config.yaml' is empty or invalid")
-    loaddefaultconf()
 
-token = config['GLOBAL']['github_token'].get(confuse.Optional(str, default=""))
+
+token = config['Global']['github_token'].get(confuse.Optional(str, default=""))
+print(token)
 try:
     if len(token) == 0:
         g = Github()
@@ -146,8 +148,7 @@ try:
         print(
             f"[{time.strftime('%H:%M:%S')}] [info]    Using configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
 except BadCredentialsException:
-    print(
-        f"[{time.strftime('%H:%M:%S')}] [warning] GitHub Token invalid or maybe expired. Check on https://github.com/settings/tokens")
+    print(f"[{time.strftime('%H:%M:%S')}] [warning] GitHub Token invalid or maybe expired. Check on https://github.com/settings/tokens")
     token = ""
     g = Github()
     print(
@@ -203,7 +204,7 @@ def install_tf2(installpath):
     print(f"[{time.strftime('%H:%M:%S')}] [info]    Copying TF2 files to {installpath.absolute()}")
     for script in scripts:
         subprocess.Popen(script, cwd=str(Path.cwd()), shell=True).wait()
-    print(f"[{time.strftime('%H:%M:%S')}] [info]    Successfully setup dedicated Northstar server. Run dedicated server with: 'cd /d {installpath.absolute()}; ./NorthstarManager.exe -dedicated'")
+    print(f"[{time.strftime('%H:%M:%S')}] [info]    Successfully setup dedicated Northstar server.")
 
 
 def sort_gitrelease(release: GitRelease):
@@ -531,4 +532,4 @@ def launcher():
 
 main()
 with open("manager_config.yaml", "w+") as f:
-    yaml.dump(json.loads(json.dumps(config.get())), f, allow_unicode=True)
+    yaml.dump(conf_comments, f)
