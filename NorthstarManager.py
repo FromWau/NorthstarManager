@@ -17,70 +17,77 @@ from github.GithubException import RateLimitExceededException, BadCredentialsExc
 from tqdm import tqdm
 
 args = ""
-showhelp = False
+showhelp = False  # print help and quit
 try:
-    i = sys.argv.index("-help")  # print help and quit
+    i = sys.argv.index("-help")
     args += " " + sys.argv.pop(i)
     showhelp = True
 except ValueError:
     pass
 
-updateAll = False
+updateAll = False  # Force updates manager then relaunches manager with args -updateAllIgnoreManager
 try:
-    i = sys.argv.index("-updateAll")  # Updates manager then relaunches manager with args -updateAllIgnoreManager
+    i = sys.argv.index("-updateAll")
     args += " " + sys.argv.pop(i)
     updateAll = True
 except ValueError:
     pass
 
-updateAllIgnoreManager = False
+updateAllIgnoreManager = False  # everything in yaml configurated will get force updated
 try:
-    i = sys.argv.index("-updateAllIgnoreManager")  # everything in yaml configurated will get updated
+    i = sys.argv.index("-updateAllIgnoreManager")
     args += " " + sys.argv.pop(i)
     updateAllIgnoreManager = True
 except ValueError:
     pass
 
-onlyUpdate = False
+updateServers = False  # Force updates servers, ignoring enabled flags
 try:
-    i = sys.argv.index("-onlyUpdate")  # run updates withoput launching
-    args += " " + sys.argv.pop(i)
-    onlyUpdate = True
-except ValueError:
-    pass
-
-onlyLaunch = False
-try:
-    i = sys.argv.index("-onlyLaunch")  # no updates and runs launcher
-    args += " " + sys.argv.pop(i)
-    onlyLaunch = True
-except ValueError:
-    pass
-
-updateServers = False
-try:
-    i = sys.argv.index("-updateServers")  # update servers, ignoring enable flags
+    i = sys.argv.index("-updateServers")
     args += " " + sys.argv.pop(i)
     updateServers = True
 except ValueError:
     pass
 
-onlyUpdateServers = False
+updateClient = False  # Force updates client and all the mods of the client, ignoring enabled flags
 try:
-    i = sys.argv.index("-onlyUpdateServers")
+    i = sys.argv.index("-updateClient")
     args += " " + sys.argv.pop(i)
-    onlyUpdateServers = True
+    updateClient = True
 except ValueError:
     pass
 
-onlyUpdateClient = False
+onlyCheckAll = False  # runs the check for updates on the client and servers
 try:
-    i = sys.argv.index("-onlyUpdateClient")
+    i = sys.argv.index("-onlyCheckAll")
     args += " " + sys.argv.pop(i)
-    onlyUpdateClient = True
+    onlyCheckAll = True
 except ValueError:
     pass
 
+onlyCheckServers = False  # only runs the check for updates on the servers
+try:
+    i = sys.argv.index("-onlyCheckServers")
+    args += " " + sys.argv.pop(i)
+    onlyCheckServers = True
+except ValueError:
+    pass
+
+onlyCheckClient = False  # only runs the check for updates on the client
+try:
+    i = sys.argv.index("-onlyCheckClient")
+    args += " " + sys.argv.pop(i)
+    onlyCheckClient = True
+except ValueError:
+    pass
+
+onlyLaunch = False  # no updates and runs launcher
+try:
+    i = sys.argv.index("-onlyLaunch")
+    args += " " + sys.argv.pop(i)
+    onlyLaunch = True
+except ValueError:
+    pass
 
 print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched NorthstarManager with {'no args' if len(args) == 0 else 'arguments:' + args}")
 
@@ -157,10 +164,15 @@ def printhelp():
     print(f"[{time.strftime('%H:%M:%S')}] [info]    Printing help")
     print(
         "Launch arguments can be set in the 'config_updater.ini'. List of launch arguments:\n"
-        "-help ................. prints this help\n"
-        "-updateAll ............ updates all repos defined in the 'config_updater.ini' to the latest release regardless of maybe being the latest release, ignoring flags: 'ignore_updates'\n"
-        "-onlyUpdate ........... only runs the updater without launching the defined launcher in the 'config_updater.ini'\n"
-        "-onlyLaunch ........... only launches the defined launcher in the 'config_updater.ini', without updating\n"
+        "-help ..................... Prints the help section for NorthstarManager.\n"
+        "-updateAll ................ Force updates all repos defined in the 'config_updater.ini' to the latest release regardless of the latest release maybe being already installed, ignoring config flags: 'ignore_updates'.\n"
+        "-updateAllIgnoreManager ... Force updates all repos defined in the 'config_updater.ini', except the Manager section, to the latest release regardless of the latest release maybe being already installed, ignoring config flags: 'ignore_updates'.\n"
+        "-updateServers ............ Force updates all repos defined in the 'config_updater.ini' under the Servers section.\n"
+        "-updateClient ............. Force updates all repos defined in the 'config_updater.ini' under the Manager and Mods section.\n"
+        "-onlyCheckAll ............. Runs the updater over all repos defined in the 'config_updater.ini' without launching the defined launcher in the 'manager_conf.ymal'.\n"
+        "-onlyCheckServers ......... Runs the updater over all repos defined in the 'config_updater.ini' under section Servers without launching the defined launcher in the 'manager_conf.ymal'.\n"
+        "-onlyCheckClient .......... Runs the updater over all repos defined in the 'config_updater.ini' under section Manager and Mods without launching the defined launcher in the 'manager_conf.ymal'.\n"
+        "-onlyLaunch ............... Only launches the defined file from the Launcher section, without checking fpr updates.\n"
         "\n"
         "Northstar Client/ vanilla TF2 args should be put into the ns_startup_args.txt or ns_startup_args_dedi.txt for dedicated servers\n"
         "All Northstar launch arguments can be found at the official wiki: https://r2northstar.gitbook.io/r2northstar-wiki/using-northstar/launch-arguments \n"
@@ -228,14 +240,12 @@ class ManagerUpdater:
         yamlpath = config
         for index in path:
             yamlpath = yamlpath[index]
+
         self.yamlpath = yamlpath
         self.blockname = path[-1]
         self.repository = yamlpath["repository"].get()
         self.repo = g.get_repo(self.repository)
         self.ignore_updates = yamlpath["ignore_updates"].get(confuse.Optional(bool, default=False))
-        if self.ignore_updates:
-            print(f"[{time.strftime('%H:%M:%S')}] [info]    Search stopped for new releases  for {self.blockname}, ignore_updates flag is set")
-            return
         self.ignore_prerelease = yamlpath["ignore_prerelease"].get(confuse.Optional(bool, default=True))
         self.install_dir = Path(yamlpath["install_dir"].get(confuse.Optional(str, default=".")))
         self._file = yamlpath["file"].get(confuse.Optional(str, default="NorthstarController.exe"))
@@ -276,7 +286,8 @@ class ManagerUpdater:
         raise NoValidAsset("No valid asset was found in release")
 
     def run(self):
-        if self.ignore_updates:
+        if self.ignore_updates and not updateAll and not updateClient:
+            print(f"[{time.strftime('%H:%M:%S')}] [info]    Search stopped for new releases  for {self.blockname}")
             return
         try:
             release, asset = self.release()
@@ -296,7 +307,7 @@ class ManagerUpdater:
         print(
             f"[{time.strftime('%H:%M:%S')}] [info]    Stopped Updater and rerun new Version of {self.blockname} after install")
 
-        pass_args = " -onlyUpdate" if onlyUpdate else ""
+        pass_args = " -onlyCheckAll" if onlyCheckAll else ""
         pass_args += " -updateAllIgnoreManager" if updateAll else ""
         pass_args += " ".join(sys.argv[1:])
         print("pass args for reboot not working porperly")
@@ -325,12 +336,7 @@ class ModUpdater:
         self.yamlpath = yamlpath
         self.blockname = path[-1]
         self.ignore_updates = self.yamlpath["ignore_updates"].get(confuse.Optional(bool, default=False))
-        if self.ignore_updates:
-            print(
-                f"[{time.strftime('%H:%M:%S')}] [info]    Search stopped for new releases  for {self.blockname}, ignore_updates flag is set")
-            return
-        self.ignore_prerelease = (
-            self.yamlpath["ignore_prerelease"].get(confuse.Optional(bool, default=True)))
+        self.ignore_prerelease = (self.yamlpath["ignore_prerelease"].get(confuse.Optional(bool, default=True)))
         self.repository = self.yamlpath["repository"].get()
         self.install_dir = Path(serverpath).joinpath(self.yamlpath["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))  # check if server mods don't get installed under client location
         self._file = self.yamlpath["file"].get(confuse.Optional(str, default="mod.json"))
@@ -358,8 +364,10 @@ class ModUpdater:
         for release in releases:
             if release.prerelease and self.ignore_prerelease:
                 continue
-            if updateAll or updateAllIgnoreManager or \
-                    release.published_at > self.last_update:
+            if updateAll \
+                    or updateServers \
+                    or updateAllIgnoreManager \
+                    or release.published_at > self.last_update:
                 return release
             if self._file != "mod.json":
                 if not self.file.exists() or self._file != "NorthstarLauncher.exe":
@@ -428,31 +436,38 @@ class ModUpdater:
             self._mod_json_extractor(zip_)
 
     def run(self):
-        if self.ignore_updates:
+        if self.ignore_updates and not updateAllIgnoreManager and not updateClient:
+            print(f"[{time.strftime('%H:%M:%S')}] [info]    Search stopped for new releases  for {self.blockname}")
             return
-        if self.is_github:
-            try:
+        try:
+            if self.is_github:
                 release = self.release()
                 url = self.asset(release)
-            except NoValidRelease:
-                print(f"[{time.strftime('%H:%M:%S')}] [info]    Latest Version already installed for {self.blockname}")
-                return
-            except NoValidAsset:
-                print(
-                    f"[{time.strftime('%H:%M:%S')}] [warning] Possibly faulty        release   for {self.blockname} published Version {release.tag_name} has no valit assets")
-                return
-        else:
-            url = requests.get(self.repo).json()["latest"]["download_url"]
-        with tempfile.NamedTemporaryFile() as download_file:
-            download(url, download_file)
-            release_zip = zipfile.ZipFile(download_file)
-            self.extract(release_zip)
-            if self.is_github:
-                self.last_update = release.published_at
             else:
-                t = requests.get(self.repo).json()["latest"]["date_created"]
-                self.last_update = datetime.fromisoformat(str(t).split(".")[0])
-            print(f"[{time.strftime('%H:%M:%S')}] [info]    Installed successfully update    for {self.blockname}")
+                t = datetime.fromisoformat(str(requests.get(self.repo).json()["latest"]["date_created"]).split(".")[0])
+                if updateAllIgnoreManager\
+                        or updateServers\
+                        or updateClient\
+                        or t > self.last_update:
+                    url = requests.get(self.repo).json()["latest"]["download_url"]
+                else:
+                    raise NoValidRelease("Found No new releases")
+            with tempfile.NamedTemporaryFile() as download_file:
+                download(url, download_file)
+                release_zip = zipfile.ZipFile(download_file)
+                self.extract(release_zip)
+                if self.is_github:
+                    self.last_update = release.published_at
+                else:
+                    self.last_update = datetime.fromisoformat(str(requests.get(self.repo).json()["latest"]["date_created"]).split(".")[0])
+                print(f"[{time.strftime('%H:%M:%S')}] [info]    Installed successfully update    for {self.blockname}")
+
+        except NoValidRelease:
+            print(f"[{time.strftime('%H:%M:%S')}] [info]    Latest Version already installed for {self.blockname}")
+            return
+        except NoValidAsset:
+            print(f"[{time.strftime('%H:%M:%S')}] [warning] Possibly faulty        release   for {self.blockname} published Version {release.tag_name} has no valit assets")
+            return
 
 
 def main():
@@ -469,7 +484,9 @@ def main():
             print(f"[{time.strftime('%H:%M:%S')}] [info]    Waiting and restarting Updater in 60s...")
             time.sleep(60)
 
-        if not onlyUpdate:
+        if not onlyCheckAll\
+                and not onlyCheckClient\
+                and not onlyCheckServers:
             launcher()
     except HaltandRunScripts:
         for script in script_queue:
@@ -480,33 +497,36 @@ def updater() -> bool:
     yamlpath = []
     for section in [s for s in config.keys() if s not in ["Example", "Launcher"]]:
         try:
-            if section == "Manager" and not updateAllIgnoreManager and not onlyUpdateServers:
+            if section == "Manager" and not updateAllIgnoreManager and not onlyCheckServers and not updateServers:
                 yamlpath = [section]
                 print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
                 ManagerUpdater(yamlpath).run()
-            if section == "Mods" and not onlyUpdateServers:
+            if section == "Mods" and not onlyCheckServers and not updateServers:
                 for mod in config[section]:
                     yamlpath = [section, mod]
                     print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
                     ModUpdater(yamlpath).run()
-            if section == "Servers" and not onlyUpdateClient:
-                if not config[section]["enabled"].get(confuse.Optional(bool, default=True)):
-                    continue
+            if (section == "Servers" and not onlyCheckClient and not updateClient) or \
+                    (section == "Servers" and updateServers):
+                if not updateServers:
+                    if not config[section]["enabled"].get(confuse.Optional(bool, default=True)) and not updateAllIgnoreManager:
+                        print(f"[{time.strftime('%H:%M:%S')}] [info]    Searvers are disabled.")
+                        continue
                 for server in config[section]:
                     if server != "enabled":
-                        if not updateServers:
+                        if not updateServers and not updateAllIgnoreManager:
                             if not config[section][server]["enabled"].get(confuse.Optional(bool, default=True)):
+                                print(f"[{time.strftime('%H:%M:%S')}] [info]    Searver {server} is disabled.")
                                 continue
-                            for mod in config[section][server]["Mods"]:
-                                yamlpath = [section, server, "Mods", mod]
-                                print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
-                                ModUpdater(yamlpath).run()
+                        for mod in config[section][server]["Mods"]:
+                            yamlpath = [section, server, "Mods", mod]
+                            print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
+                            ModUpdater(yamlpath).run()
 
-                            server_path = Path(config[section][server]["dir"].get(confuse.Optional(str, default=f"./servers/{server}")))
-                            if not server_path.joinpath("Titanfall2.exe").exists():
-                                print(
-                                    f"[{time.strftime('%H:%M:%S')}] [warning] Titanfall2 files not existing at the server location.")
-                                install_tf2(server_path)
+                        server_path = Path(config[section][server]["dir"].get(confuse.Optional(str, default=f"./servers/{server}")))
+                        if not server_path.joinpath("Titanfall2.exe").exists():
+                            print(f"[{time.strftime('%H:%M:%S')}] [warning] Titanfall2 files not existing at the server location.")
+                            install_tf2(server_path)
 
         except RateLimitExceededException:
             print(f"[{time.strftime('%H:%M:%S')}] [warning] GitHub rate exceeded for {'/'.join(yamlpath)}")
@@ -530,7 +550,7 @@ def launcher():
             time.sleep(10)
             print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched  Origin succesfull")
 
-        script = f'"{config["Launcher"]["filename"].get()}"{config["Launcher"]["argumnets"].get()}{" ".join(sys.argv[1:])}'
+        script = f'"{config["Launcher"]["filename"].get()}" {config["Launcher"]["argumnets"].get()} {" ".join(sys.argv[1:])}'
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching {script}")
         subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
 
