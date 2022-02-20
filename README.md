@@ -42,6 +42,7 @@ NorthstarManager.exe can be launched with following flags:
 | --- | --- |
 | -help | Prints the help section for NorthstarManager |
 | -updateAll | Updates all repos defined in the 'config_updater.ini' to the latest release regardless of the latest release maybe being already installed, ignoring flags: 'ignore_updates' |
+| -updateAllIgnoreManager | Updates all repos defined in the 'config_updater.ini', except the Manager section, to the latest release regardless of the latest release maybe being already installed, ignoring flags: 'ignore_updates' |
 | -onlyUpdate | Only runs the updater without launching the defined launcher in the 'manager_conf.ymal' |
 | -onlyLaunch | Only launches the defined file from the Launcher section, without updating the repos |
-| -dedicated | Runs the launcher as dedicated server |
+
