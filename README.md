@@ -40,7 +40,7 @@ NorthstarManager.exe can be launched with following flags:
 
 | Launch Arguments | Description |
 | --- | --- |
-| -help | Prints the help section for NorthstarManager |
+| -help | Prints the help section for NorthstarManager. |
 | -updateAll | Force updates all repos defined in the 'config_updater.ini' to the latest release regardless of the latest release maybe being already installed, ignoring config flags: 'ignore_updates'. |
 | -updateAllIgnoreManager | Force updates all repos defined in the 'config_updater.ini', except the Manager section, to the latest release regardless of the latest release maybe being already installed, ignoring config flags: 'ignore_updates'. |
 | -updateServers | Force updates all repos defined in the 'config_updater.ini' under the Servers section. |
