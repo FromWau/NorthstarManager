@@ -41,8 +41,12 @@ NorthstarManager.exe can be launched with following flags:
 | Launch Arguments | Description |
 | --- | --- |
 | -help | Prints the help section for NorthstarManager |
-| -updateAll | Updates all repos defined in the 'config_updater.ini' to the latest release regardless of the latest release maybe being already installed, ignoring flags: 'ignore_updates' |
-| -updateAllIgnoreManager | Updates all repos defined in the 'config_updater.ini', except the Manager section, to the latest release regardless of the latest release maybe being already installed, ignoring flags: 'ignore_updates' |
-| -onlyUpdate | Only runs the updater without launching the defined launcher in the 'manager_conf.ymal' |
-| -onlyLaunch | Only launches the defined file from the Launcher section, without updating the repos |
+| -updateAll | Force updates all repos defined in the 'config_updater.ini' to the latest release regardless of the latest release maybe being already installed, ignoring config flags: 'ignore_updates'. |
+| -updateAllIgnoreManager | Force updates all repos defined in the 'config_updater.ini', except the Manager section, to the latest release regardless of the latest release maybe being already installed, ignoring config flags: 'ignore_updates'. |
+| -updateServers | Force updates all repos defined in the 'config_updater.ini' under the Servers section. |
+| -updateClient | Force updates all repos defined in the 'config_updater.ini' under the Manager and Mods section. |
+| -onlyCheckAll | Runs the updater over all repos defined in the 'config_updater.ini' without launching the defined launcher in the 'manager_conf.ymal'. |
+| -onlyCheckServers | Runs the updater over all repos defined in the 'config_updater.ini' under section Servers without launching the defined launcher in the 'manager_conf.ymal'. |
+| -onlyCheckClient | Runs the updater over all repos defined in the 'config_updater.ini' under section Manager and Mods without launching the defined launcher in the 'manager_conf.ymal'. |
+| -onlyLaunch | Only launches the defined file from the Launcher section, without checking fpr updates. |
 
