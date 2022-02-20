@@ -13,7 +13,7 @@ from pathlib import Path
 import requests
 from github import Github
 from github.GitRelease import GitRelease
-from github.GithubException import RateLimitExceededException, BadCredentialsException
+from github.GithubException import RateLimitExceededException, BadCredentialsException, UnknownObjectException
 from tqdm import tqdm
 
 args = ""
@@ -136,22 +136,19 @@ except ValueError:
     print(f"[{time.strftime('%H:%M:%S')}] [warning] 'manager_config.yaml' is empty or invalid")
 
 
-token = config['Global']['github_token'].get(confuse.Optional(str, default=""))
+git_token = config['Global']['github_token'].get(confuse.Optional(str, default=""))
 try:
-    if len(token) == 0:
+    if len(git_token) == 0:
         g = Github()
-        print(
-            f"[{time.strftime('%H:%M:%S')}] [info]    No configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    No configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
     else:
-        g = Github(token)
-        print(
-            f"[{time.strftime('%H:%M:%S')}] [info]    Using configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+        g = Github(git_token)
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    Using configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
 except BadCredentialsException:
     print(f"[{time.strftime('%H:%M:%S')}] [warning] GitHub Token invalid or maybe expired. Check on https://github.com/settings/tokens")
-    token = ""
+    git_token = ""
     g = Github()
-    print(
-        f"[{time.strftime('%H:%M:%S')}] [info]    Using no GitHub Token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+    print(f"[{time.strftime('%H:%M:%S')}] [info]    Using no GitHub Token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
 
 script_queue = []
 
@@ -203,7 +200,7 @@ def install_tf2(installpath):
     print(f"[{time.strftime('%H:%M:%S')}] [info]    Copying TF2 files to {installpath.absolute()}")
     for script in scripts:
         subprocess.Popen(script, cwd=str(Path.cwd()), shell=True).wait()
-    print(f"[{time.strftime('%H:%M:%S')}] [info]    Successfully setup dedicated Northstar server.")
+    print(f"[{time.strftime('%H:%M:%S')}] [info]    Successfully copied TF2 files")
 
 
 def sort_gitrelease(release: GitRelease):
@@ -327,18 +324,24 @@ class ModUpdater:
 
         self.yamlpath = yamlpath
         self.blockname = path[-1]
-        self.repository = self.yamlpath["repository"].get()
-        self.repo = g.get_repo(self.repository)
         self.ignore_updates = self.yamlpath["ignore_updates"].get(confuse.Optional(bool, default=False))
         if self.ignore_updates:
-            print(f"[{time.strftime('%H:%M:%S')}] [info]    Search stopped for new releases  for {self.blockname}, ignore_updates flag is set")
+            print(
+                f"[{time.strftime('%H:%M:%S')}] [info]    Search stopped for new releases  for {self.blockname}, ignore_updates flag is set")
             return
         self.ignore_prerelease = (
-                self.yamlpath["ignore_prerelease"].get(confuse.Optional(bool, default=True)))
+            self.yamlpath["ignore_prerelease"].get(confuse.Optional(bool, default=True)))
+        self.repository = self.yamlpath["repository"].get()
         self.install_dir = Path(serverpath).joinpath(self.yamlpath["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))  # check if server mods don't get installed under client location
         self._file = self.yamlpath["file"].get(confuse.Optional(str, default="mod.json"))
         self.file = (self.install_dir / self._file).resolve()
         self.exclude_files = self.yamlpath["exclude_files"].get(confuse.Optional(list, default=[]))
+        try:
+            self.repo = g.get_repo(self.repository)
+            self.is_github = True
+        except UnknownObjectException:
+            self.repo = "https://northstar.thunderstore.io/api/experimental/package/"+self.repository
+            self.is_github = False
 
     @property
     def last_update(self):
@@ -427,29 +430,33 @@ class ModUpdater:
     def run(self):
         if self.ignore_updates:
             return
-        try:
-            release = self.release()
-            url = self.asset(release)
-        except NoValidRelease:
-            print(f"[{time.strftime('%H:%M:%S')}] [info]    Latest Version already installed for {self.blockname}")
-            return
-        except NoValidAsset:
-            print(
-                f"[{time.strftime('%H:%M:%S')}] [warning] Possibly faulty        release   for {self.blockname} published Version {release.tag_name} has no valit assets")
-            return
+        if self.is_github:
+            try:
+                release = self.release()
+                url = self.asset(release)
+            except NoValidRelease:
+                print(f"[{time.strftime('%H:%M:%S')}] [info]    Latest Version already installed for {self.blockname}")
+                return
+            except NoValidAsset:
+                print(
+                    f"[{time.strftime('%H:%M:%S')}] [warning] Possibly faulty        release   for {self.blockname} published Version {release.tag_name} has no valit assets")
+                return
+        else:
+            url = requests.get(self.repo).json()["latest"]["download_url"]
         with tempfile.NamedTemporaryFile() as download_file:
             download(url, download_file)
             release_zip = zipfile.ZipFile(download_file)
             self.extract(release_zip)
-            self.last_update = release.published_at
+            if self.is_github:
+                self.last_update = release.published_at
+            else:
+                t = requests.get(self.repo).json()["latest"]["date_created"]
+                self.last_update = datetime.fromisoformat(str(t).split(".")[0])
             print(f"[{time.strftime('%H:%M:%S')}] [info]    Installed successfully update    for {self.blockname}")
 
 
 def main():
     try:
-        # if createServer:
-        # createserver(serverpath=createServerPath)
-        # %TODO configuration
         if showhelp:
             printhelp()
             return
@@ -494,9 +501,11 @@ def updater() -> bool:
                                 yamlpath = [section, server, "Mods", mod]
                                 print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
                                 ModUpdater(yamlpath).run()
-                            # check if titanfall2.exe exists in server dir
+
                             server_path = Path(config[section][server]["dir"].get(confuse.Optional(str, default=f"./servers/{server}")))
                             if not server_path.joinpath("Titanfall2.exe").exists():
+                                print(
+                                    f"[{time.strftime('%H:%M:%S')}] [warning] Titanfall2 files not existing at the server location.")
                                 install_tf2(server_path)
 
         except RateLimitExceededException:
