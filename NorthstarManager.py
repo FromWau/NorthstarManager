@@ -1,3 +1,5 @@
+import json
+
 import confuse
 import ruamel.yaml
 import psutil
@@ -86,6 +88,15 @@ try:
     i = sys.argv.index("-onlyLaunch")
     args += " " + sys.argv.pop(i)
     onlyLaunch = True
+except ValueError:
+    pass
+
+# %TODO add to documentation
+launchServers = False  # launches all servers which are not disabled
+try:
+    i = sys.argv.index("-launchServers")
+    args += " " + sys.argv.pop(i)
+    launchServers = True
 except ValueError:
     pass
 
@@ -325,12 +336,11 @@ class ManagerUpdater:
 
 class ModUpdater:
     def __init__(self, path):
+        serverpath = ""
+        if path[0] == "Servers":
+            serverpath = Path(config[path[0]][path[1]]["dir"].get(confuse.Optional(str, default=".")))
         yamlpath = config
-        serverpath = ''
-        pre_index = ''
         for index in path:
-            if pre_index == "Servers":
-                serverpath = Path(config[pre_index][index]["dir"].get(confuse.Optional(str, default=".")))
             yamlpath = yamlpath[index]
 
         self.yamlpath = yamlpath
@@ -338,7 +348,7 @@ class ModUpdater:
         self.ignore_updates = self.yamlpath["ignore_updates"].get(confuse.Optional(bool, default=False))
         self.ignore_prerelease = (self.yamlpath["ignore_prerelease"].get(confuse.Optional(bool, default=True)))
         self.repository = self.yamlpath["repository"].get()
-        self.install_dir = Path(serverpath).joinpath(self.yamlpath["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))  # check if server mods don't get installed under client location
+        self.install_dir = Path(serverpath / self.yamlpath["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))  # check if server mods don't get installed under client location
         self._file = self.yamlpath["file"].get(confuse.Optional(str, default="mod.json"))
         self.file = (self.install_dir / self._file).resolve()
         self.exclude_files = self.yamlpath["exclude_files"].get(confuse.Optional(list, default=[]))
@@ -484,10 +494,14 @@ def main():
             print(f"[{time.strftime('%H:%M:%S')}] [info]    Waiting and restarting Updater in 60s...")
             time.sleep(60)
 
+        if launchServers:
+            launchservers()
+
         if not onlyCheckAll\
                 and not onlyCheckClient\
                 and not onlyCheckServers:
             launcher()
+
     except HaltandRunScripts:
         for script in script_queue:
             subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
@@ -518,12 +532,131 @@ def updater() -> bool:
                             if not config[section][server]["enabled"].get(confuse.Optional(bool, default=True)):
                                 print(f"[{time.strftime('%H:%M:%S')}] [info]    Searver {server} is disabled.")
                                 continue
-                        for mod in config[section][server]["Mods"]:
-                            yamlpath = [section, server, "Mods", mod]
-                            print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
-                            ModUpdater(yamlpath).run()
-
                         server_path = Path(config[section][server]["dir"].get(confuse.Optional(str, default=f"./servers/{server}")))
+                        for con in config[section][server]:
+                            if con == "Mods":
+                                for mod in config[section][server][con]:
+                                    yamlpath = [section, server, con, mod]
+                                    print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
+                                    ModUpdater(yamlpath).run()
+                            elif con == "config":
+                                for file in config[section][server][con]:
+                                    yamlpath = [section, server, con, file]
+
+                                    if file == "ns_startup_args_dedi.txt":
+                                        x = Path(server_path / file)
+                                        if not x.exists():
+                                            print(f"[{time.strftime('%H:%M:%S')}] [warning] file in config: {'/'.join(yamlpath)} not found. check spelling or run the manager with -updateServers if northstar is not installed")
+
+                                        replace_str = ""
+                                        config_list = str(config[section][server][con][file].get()).strip()+" "
+                                        c_dict = {}
+                                        for c in list(config_list.split("+")[1:]):
+                                            c.strip()
+                                            split = c.split(" ")
+                                            c_dict["+"+split[0]] = split[1] if len(split[1:-1]) == 1 else " ".join(split[1:-1])
+
+                                        with open(x, 'r') as replace:
+                                            while line := replace.readline():
+                                                line = line.strip()
+                                                va = list(line.split("+")[1:])
+                                                for line_value in va:
+                                                    split = line_value.split(" ")
+                                                    key = "+"+split[0]
+                                                    va = split[1] if len(split[1:-1]) == 1 else " ".join(split[1:-1])
+
+                                                    if key in c_dict.keys():
+                                                        continue
+                                                    replace_str += f" {key} {va}"
+
+                                        for k, v in c_dict.items():
+                                            replace_str += f" {k} {v}"
+                                        replace_str = replace_str.strip()
+
+                                        # write new config to file
+                                        with open(x, "w") as replace:
+                                            replace.write(replace_str)
+
+                                    elif file == "mod.json":
+                                        for file_section in config[section][server][con][file]:
+                                            yamlpath = [section, server, con, file, file_section]
+                                            if file_section == "ConVars":
+
+                                                x = Path(server_path / "R2Northstar/mods/Northstar.CustomServers" / file)
+                                                if not x.exists():
+                                                    print(f"[{time.strftime('%H:%M:%S')}] [warning] file in config: {'/'.join(yamlpath)} not found. check spelling or run the manager with -updateServers if northstar is not installed")
+
+                                                config_list = config[section][server][con][file][file_section].get()
+                                                # read config
+                                                with open(x, "r") as j:
+                                                    data = json.load(j)
+
+                                                json_list = list(data["ConVars"])
+                                                remove_list = []
+                                                # search the to replace items
+                                                for j in json_list:
+                                                    for key, value in config_list.items():
+                                                        if j["Name"] == key:
+                                                            remove_list.append(j)
+                                                # remove to replace items
+                                                for j in remove_list:
+                                                    json_list.remove(j)
+                                                # add updated item
+                                                for key, value in config_list.items():
+                                                    json_string = {
+                                                        "Name": key,
+                                                        "DefaultValue": value
+                                                    }
+                                                    json_list.append(json_string)
+                                                # write config
+                                                data["ConVars"] = json_list
+                                                with open(x, "w") as j:
+                                                    json.dump(data, j, indent=4)
+
+                                            else:
+                                                print(f"Unknown section in {yamlpath}")
+
+                                    elif file == "autoexec_ns_server.cfg":
+                                        x = Path(server_path / "R2Northstar/mods/Northstar.CustomServers/mod/cfg" / file)
+                                        if not x.exists():
+                                            print(f"[{time.strftime('%H:%M:%S')}] [warning] file in config: {'/'.join(yamlpath)} not found. check spelling or run the manager with -updateServers if northstar is not installed")
+
+                                        replace_str = ""
+                                        config_list = config[section][server][con][file].get().copy()
+
+                                        # search for args that need to be replaced
+                                        with open(x, 'r') as replace:
+                                            while line := replace.readline():
+                                                line = line.strip()
+                                                if not line:  # for blank lines
+                                                    replace_str += "\n"
+                                                    continue
+
+                                                if line.startswith("//"):  # for only comment lines
+                                                    replace_str += line + "\n"
+                                                    continue
+
+                                                comment = line.split(" //")
+                                                line_value = comment[0].split(" ")
+
+                                                found = False
+                                                for key, value in config_list.items():
+                                                    if key == line_value[0]:
+                                                        config_list.pop(key)
+                                                        found = True
+                                                        replace_str += f"{line_value[0]} {value}{'' if len(comment[1:]) == 0 else ' //' + ' '.join(comment[1:])} \n"
+                                                        break
+                                                if not found:
+                                                    replace_str += f"{line_value[0]} {' '.join(line_value[1:])} //{' '.join(comment[1:])}\n"
+
+                                        # add not found args in config file
+                                        for key, value in config_list.items():
+                                            replace_str += f"{key} {value}\n"
+
+                                        # write new config to file
+                                        with open(x, "w") as replace:
+                                            replace.write(replace_str)
+
                         if not server_path.joinpath("Titanfall2.exe").exists():
                             print(f"[{time.strftime('%H:%M:%S')}] [warning] Titanfall2 files not existing at the server location.")
                             install_tf2(server_path)
@@ -535,13 +668,22 @@ def updater() -> bool:
                 break
             return False
         except FileNotInZip:
-            print(
-                f"[{time.strftime('%H:%M:%S')}] [warning] Zip file for {'/'.join(yamlpath)} doesn't contain expected files")
+            print(f"[{time.strftime('%H:%M:%S')}] [warning] Zip file for {'/'.join(yamlpath)} doesn't contain expected files")
     print(f"[{time.strftime('%H:%M:%S')}] [info]    Successfully checkt all mods")
     return True
 
 
 def launcher():
+    script = f'"{config["Launcher"]["filename"].get()}" {config["Launcher"]["argumnets"].get()} {" ".join(sys.argv[1:])}'
+    pre_launch_origin()
+    try:
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching {script}")
+        subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
+    except FileNotFoundError:
+        print(f"[{time.strftime('%H:%M:%S')}] [warning] Could not run {script}")
+
+
+def pre_launch_origin():
     script = "C:/Program Files (x86)/Origin/Origin.exe"
     try:
         if "Origin.exe" not in (p.name() for p in psutil.process_iter()):
@@ -550,12 +692,33 @@ def launcher():
             time.sleep(10)
             print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched  Origin succesfull")
 
-        script = f'"{config["Launcher"]["filename"].get()}" {config["Launcher"]["argumnets"].get()} {" ".join(sys.argv[1:])}'
-        print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching {script}")
-        subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
-
     except FileNotFoundError:
         print(f"[{time.strftime('%H:%M:%S')}] [warning] Could not run {script}")
+
+
+def launchservers():
+    scripts = []
+
+    if not config["Servers"]["enabled"].get(confuse.Optional(bool, default=True)):
+        print("Servers are disabled.")
+        return
+    for server in config["Servers"]:
+        if server != "enabled":
+            if not config["Servers"][server]["enabled"].get(confuse.Optional(bool, default=True)):
+                print(f"{server} is disabled")
+                continue
+            else:
+                print("launch "+server)
+                server_dir = config["Servers"][server]["dir"]
+                scripts.append(f'start cmd.exe /k "cd /d {server_dir} && NorthstarLauncher.exe -dedicated"')
+
+    if len(scripts) == 0:
+        print("No enabled Servers found.")
+        return
+
+    pre_launch_origin()
+    for script in scripts:
+        subprocess.Popen(script, cwd=str(Path.cwd()), shell=True).wait()
 
 
 main()
