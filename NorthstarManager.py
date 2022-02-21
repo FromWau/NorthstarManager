@@ -348,7 +348,10 @@ class ModUpdater:
         self.ignore_updates = self.yamlpath["ignore_updates"].get(confuse.Optional(bool, default=False))
         self.ignore_prerelease = (self.yamlpath["ignore_prerelease"].get(confuse.Optional(bool, default=True)))
         self.repository = self.yamlpath["repository"].get()
-        self.install_dir = Path(serverpath / self.yamlpath["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))  # check if server mods don't get installed under client location
+        if len(str(serverpath)) != 0:
+            self.install_dir = Path(serverpath / self.yamlpath["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))
+        else:
+            self.install_dir = Path(self.yamlpath["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))
         self._file = self.yamlpath["file"].get(confuse.Optional(str, default="mod.json"))
         self.file = (self.install_dir / self._file).resolve()
         self.exclude_files = self.yamlpath["exclude_files"].get(confuse.Optional(list, default=[]))
