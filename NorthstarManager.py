@@ -1,23 +1,29 @@
 import json
-
 import confuse
 import ruamel.yaml
+
 import psutil
 import shutil
 import subprocess
 import sys
 import tempfile
-import time
 import zipfile
-from datetime import datetime, timedelta
 from pathlib import Path
 
+import time
+from datetime import datetime, timedelta
+
+from tqdm import tqdm
 import requests
 from github import Github
 from github.GitRelease import GitRelease
-from github.GithubException import RateLimitExceededException, BadCredentialsException, UnknownObjectException
-from tqdm import tqdm
 
+from confuse import ConfigTypeError
+from github.GithubException import RateLimitExceededException, BadCredentialsException, UnknownObjectException
+
+# ================
+# Read Launch Args
+# ================
 args = ""
 showhelp = False  # print help and quit
 try:
@@ -100,8 +106,12 @@ try:
 except ValueError:
     pass
 
-print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched NorthstarManager with {'no args' if len(args) == 0 else 'arguments:' + args}")
+print(
+    f"[{time.strftime('%H:%M:%S')}] [info]    Launched NorthstarManager with {'no args' if len(args) == 0 else 'arguments:' + args}")
 
+# =======================================================
+# Read 'manager_config.yaml' and setup configuration file
+# =======================================================
 yaml = ruamel.yaml.YAML()
 yaml.indent(mapping=4, sequence=2, offset=0)
 global conf_comments
@@ -110,34 +120,80 @@ print(f"[{time.strftime('%H:%M:%S')}] [info]    Reading config from 'manager_con
 if not Path("manager_config.yaml").exists():
     print(f"[{time.strftime('%H:%M:%S')}] [warning] 'manager_config.yaml' does not exist")
     print(f"[{time.strftime('%H:%M:%S')}] [info]    Using default config instead")
+
+    # default config if the 'manager_config.yaml' does not exist
     default_conf = """\
-# This is the default config
-# ==========================  
+# Global - Settings which persist for every other section
+# ======================================================
 Global:
-    # set github token here
-    github_token:   
+    github_token:  # token for GitHub, can be acquired from: https://github.com/settings/tokens
 
+# Launcher - Defines the to be launched Application with optional args
+# ====================================================================
 Launcher:
-    filename: NorthstarLauncher.exe
-    argumnets:
+    filename: NorthstarLauncher.exe  # launches the NorthstarLauncher
+#    filename: Titanfall2.exe  # launches Vanilla Titanfall2
+    argumnets: ''  # Arguments for the launcher. The NorthstarLauncher uses also the args defined in the ns_startup_args.txt file
 
+# Manager - Config for the Manager of Northstar
+# =============================================
 Manager:
-    file: NorthstarManager.exe
-    install_dir: .
-    last_update: '0001-01-01T00:00:00'
-    repository: FromWau/NorthstarManager
+    repository: FromWau/NorthstarManager  # repo from where to search for updates. Will search at first at GitHub.com and then at northstar.thunderstore.io
+    last_update: '0001-01-01T00:00:00'  # publishe date of the latest version of the repo
+    file: NorthstarManager.exe  # main file of the repo
+#    install_dir: .  # install directory
+#    ignore_updates: true  # will ignore new version and keeps the installed version
+#    ignore_prerelease: true  # will ignore pre_releases when searching for new realeses of the repo
 
+# Mods - List of managed mods
+# ===========================
 Mods:
-    Northstar:
-        exclude_files:
-            - ns_startup_args.txt
-            - ns_startup_args_dedi.txt
-        file: NorthstarLauncher.exe
-        ignore_prerelease: True
-        ignore_updates: False
-        install_dir: .
-        last_update: '0001-01-01T00:00:00'
-        repository: R2Northstar/Northstar
+    Northstar:  # Northstar will be handled here
+        repository: R2Northstar/Northstar  # repo of Northstar
+        last_update: '0001-01-01T00:00:00'  # publishe date of the latest version of Northstar
+        install_dir: .  # install directory is necessary for Northstar default is in the mods folder
+        file: NorthstarLauncher.exe  # main file of the repo
+        exclude_files:  # files that should be excluded when updating the repo
+        - ns_startup_args.txt
+        - ns_startup_args_dedi.txt
+
+
+#    How to install a new mod (example for SpeedOMeter) :
+#    -------------------------
+#    S2speedometer:  # Name of Mod (could be anything)
+#        repository: Mysterious_Reuploads/S2speedometer  # the repo from where to grab the latest release
+
+# Servers - List of all Servers that should be managed
+# ====================================================
+#Servers:
+#    enabled: false  # disables all listed servers for update checks, and they will not get launched
+#
+#    How to install/ configure a server (you do not need to download or setup anything just configure what you want down below) (example for Kraber9k Server):
+#    -----------------------------------
+#    Kraber 9k:  # Name of the Server
+#        dir: servers/Kraber 9k  # directory where the server is located
+#        enabled: false  # disables this server for update checks, and the server will not get launched
+#        Mods:  # Mods for the server
+#            Northstar:  # Northstar, is needed for the server
+#                repository: R2Northstar/Northstar  # repo of Northstar
+#                last_update: '0001-01-01T00:00:00'  # publishe date of the latest version of Northstar
+#                install_dir: .  # install directory from the root dir of the server
+#                file: NorthstarLauncher.exe  # main file of the repo
+#
+#        config:  # Config of the Server, configuration for servers is split up into 3 different files
+#            ns_startup_args_dedi.txt: +mp_gamemode ps +setplaylistvaroverride "custom_air_acc_pilot 9000" +setplaylist private_match  # startup args for this server
+#            mod.json:  # config for Northstar.CustomServers
+#                ConVars:  # the section of the file
+#                    ns_private_match_last_map: mp_glitch  # key and value of a configuration
+#                    ns_private_match_last_mode: ps
+#                    ns_disallowed_weapons: mp_weapon_r97,mp_weapon_alternator_smg,mp_weapon_car,mp_weapon_hemlok_smg,mp_weapon_lmg,mp_weapon_lstar,mp_weapon_esaw,mp_weapon_rspn101,mp_weapon_vinson,mp_weapon_hemlok,mp_weapon_g2,mp_weapon_shotgun,mp_weapon_mastiff,mp_weapon_dmr,mp_weapon_doubletake,mp_weapon_epg,mp_weapon_smr,mp_weapon_pulse_lmg,mp_weapon_softball,mp_weapon_autopistol,mp_weapon_semipistol,mp_weapon_wingman,mp_weapon_shotgun_pistol,mp_weapon_rocket_launcher,mp_weapon_arc_launcher,mp_weapon_defender,mp_weapon_mgl,mp_weapon_wingman_n,mp_weapon_rspn101_og
+#                    ns_disallowed_weapon_primary_replacement: mp_weapon_sniper
+#            autoexec_ns_server.cfg:  # config for server
+#                ns_server_name: Example Kraber9k Server  # key and value of a configuration
+#                ns_server_desc: Example Server configurated via FromWau/NorthstarManager
+#                ns_should_return_to_lobby: 1
+#                ns_private_match_only_host_can_change_settings: 2
+#                ns_player_auth_port: 8081  # IMPORTANT: EVERY RUNNING SERVER NEEDS AN UNIQUE PORT AND THIS PORT NEEDS TO BE PORT-FORWARDED 
 """
     conf_comments = ruamel.yaml.load(default_conf, ruamel.yaml.RoundTripLoader)
 else:
@@ -147,43 +203,80 @@ else:
 config = confuse.Configuration("NorthstarManager", __name__)
 config.set(conf_comments)
 
-try:
-    for i in ["Manager", "Launcher", "Mods"]:
-        config.keys().remove(i)
-except ValueError:
-    print(f"[{time.strftime('%H:%M:%S')}] [warning] 'manager_config.yaml' is empty or invalid")
+# Check if loaded conf is valid/ minimal conf is given to run northstar
+print(f"[{time.strftime('%H:%M:%S')}] [info]    Validating 'manager_config.yaml'...")
+valid_test = {
+    'Launcher': {
+        'filename': 'NorthstarLauncher.exe',
+    },
+    'Manager': {
+        'repository': 'FromWau/NorthstarManager',
+        'file': 'NorthstarManager.exe',
+    },
+    'Mods': {
+        'Northstar': {
+            'repository': 'R2Northstar/Northstar',
+            'install_dir': '.',
+            'file': 'NorthstarLauncher.exe'
+        }
+    }
+}
+valid_counter = 0
+for key in valid_test.keys():
+    for section in valid_test[key]:
+        if (f"{section}", f"{valid_test[key][section]}") in config.get()[key].items():
+            valid_counter += 1
+            continue
+        for section2 in valid_test[key][section]:
+            if (f"{section2}", f"{valid_test[key][section][section2]}") in config.get()[key][section].items():
+                valid_counter += 1
 
+if valid_counter < 6:
+    print(f"[{time.strftime('%H:%M:%S')}] [error]   'manager_config.yaml' is empty or invalid")
+    exit(1)
+print(f"[{time.strftime('%H:%M:%S')}] [info]    Validation successful for 'manager_config.yaml'")
 
+# ===========================
+# Read token and setup githuh
+# ===========================
 git_token = config['Global']['github_token'].get(confuse.Optional(str, default=""))
 try:
     if len(git_token) == 0:
         g = Github()
-        print(f"[{time.strftime('%H:%M:%S')}] [info]    No configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+        print(
+            f"[{time.strftime('%H:%M:%S')}] [info]    No configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
     else:
         g = Github(git_token)
-        print(f"[{time.strftime('%H:%M:%S')}] [info]    Using configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+        print(
+            f"[{time.strftime('%H:%M:%S')}] [info]    Using configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
 except BadCredentialsException:
-    print(f"[{time.strftime('%H:%M:%S')}] [warning] GitHub Token invalid or maybe expired. Check on https://github.com/settings/tokens")
+    print(
+        f"[{time.strftime('%H:%M:%S')}] [warning] GitHub Token invalid or maybe expired. Check on https://github.com/settings/tokens")
     git_token = ""
     g = Github()
-    print(f"[{time.strftime('%H:%M:%S')}] [info]    Using no GitHub Token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+    print(
+        f"[{time.strftime('%H:%M:%S')}] [info]    Using no GitHub Token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
 
 script_queue = []
 
 
+# ===============
+# Prints the help
+# ===============
 def printhelp():
     print(f"[{time.strftime('%H:%M:%S')}] [info]    Printing help")
     print(
-        "Launch arguments can be set in the 'config_updater.ini'. List of launch arguments:\n"
+        "Launch arguments can be set in the 'manager_config.yaml'. List of launch arguments:\n"
         "-help ..................... Prints the help section for NorthstarManager.\n"
-        "-updateAll ................ Force updates all repos defined in the 'config_updater.ini' to the latest release regardless of the latest release maybe being already installed, ignoring config flags: 'ignore_updates'.\n"
-        "-updateAllIgnoreManager ... Force updates all repos defined in the 'config_updater.ini', except the Manager section, to the latest release regardless of the latest release maybe being already installed, ignoring config flags: 'ignore_updates'.\n"
-        "-updateServers ............ Force updates all repos defined in the 'config_updater.ini' under the Servers section.\n"
-        "-updateClient ............. Force updates all repos defined in the 'config_updater.ini' under the Manager and Mods section.\n"
-        "-onlyCheckAll ............. Runs the updater over all repos defined in the 'config_updater.ini' without launching the defined launcher in the 'manager_conf.ymal'.\n"
-        "-onlyCheckServers ......... Runs the updater over all repos defined in the 'config_updater.ini' under section Servers without launching the defined launcher in the 'manager_conf.ymal'.\n"
-        "-onlyCheckClient .......... Runs the updater over all repos defined in the 'config_updater.ini' under section Manager and Mods without launching the defined launcher in the 'manager_conf.ymal'.\n"
+        "-updateAll ................ Force updates all repos defined in the 'manager_config.yaml' to the latest release regardless of the latest release maybe being already installed, ignoring config flags: 'ignore_updates'.\n"
+        "-updateAllIgnoreManager ... Force updates all repos defined in the 'manager_config.yaml', except the Manager section, to the latest release regardless of the latest release maybe being already installed, ignoring config flags: 'ignore_updates'.\n"
+        "-updateServers ............ Force updates all repos defined in the 'manager_config.yaml' under the Servers section.\n"
+        "-updateClient ............. Force updates all repos defined in the 'manager_config.yaml' under the Manager and Mods section.\n"
+        "-onlyCheckAll ............. Runs the updater over all repos defined in the 'manager_config.yaml' without launching the defined launcher in the 'manager_conf.ymal'.\n"
+        "-onlyCheckServers ......... Runs the updater over all repos defined in the 'manager_config.yaml' under section Servers without launching the defined launcher in the 'manager_conf.ymal'.\n"
+        "-onlyCheckClient .......... Runs the updater over all repos defined in the 'manager_config.yaml' under section Manager and Mods without launching the defined launcher in the 'manager_conf.ymal'.\n"
         "-onlyLaunch ............... Only launches the defined file from the Launcher section, without checking fpr updates.\n"
+        "-launchServers ............ Launches all enabled servers from the 'manager_config.yaml'"
         "\n"
         "Northstar Client/ vanilla TF2 args should be put into the ns_startup_args.txt or ns_startup_args_dedi.txt for dedicated servers\n"
         "All Northstar launch arguments can be found at the official wiki: https://r2northstar.gitbook.io/r2northstar-wiki/using-northstar/launch-arguments \n"
@@ -191,6 +284,9 @@ def printhelp():
     )
 
 
+# ======================
+# Download fun for files
+# ======================
 def download(url, download_file):
     with requests.get(url, stream=True) as response:
         total = int(response.headers.get("content-length", 0))
@@ -203,33 +299,42 @@ def download(url, download_file):
                 download_file.write(data)
 
 
+# ====================================
+# Copy Titanfall2 files to a given dir
+# ====================================
 def install_tf2(installpath):
     originpath = Path.cwd()
-    scripts = [
-        f'xcopy "{originpath}/__Installer" "{installpath}/__Installer/" /s /e /q /I && '
-        f'xcopy "{originpath}/bin" "{installpath}/bin/" /s /e /q /I && '
-        f'xcopy "{originpath}/Core" "{installpath}/Core/" /s /e /q /I && '
-        f'xcopy "{originpath}/platform" "{installpath}/platform/" /s /e /q /I && '
-        f'xcopy "{originpath}/Support" "{installpath}/Support/" /s /e /q /I && '
-        f'xcopy "{originpath}\\build.txt" "{installpath}" /q && '
-        f'xcopy "{originpath}\\gameversion.txt" "{installpath}" /q && '
-        f'xcopy "{originpath}\\server.dll" "{installpath}" /q && '
-        f'xcopy "{originpath}\\Titanfall2.exe" "{installpath}" /q && '
-        f'xcopy "{originpath}\\Titanfall2_trial.exe" "{installpath}" /q && '
-        f"echo [{time.strftime('%H:%M:%S')}] [info]    Creating a junction for vpk and r2 && "
-        f'mklink /j "{installpath}/vpk" "{originpath}/vpk" && '
-        f'mklink /j "{installpath}/r2" "{originpath}/r2"'
-    ]
-    print(f"[{time.strftime('%H:%M:%S')}] [info]    Copying TF2 files to {installpath.absolute()}")
-    for script in scripts:
-        subprocess.Popen(script, cwd=str(Path.cwd()), shell=True).wait()
+    print(
+        f"[{time.strftime('%H:%M:%S')}] [info]    Copying TF2 files and creating a junction for vpk, r2 to {installpath.absolute()}")
+
+    script = \
+        'echo OFF && ' \
+        f'xcopy "{originpath.joinpath("__Installer")}" "{installpath.joinpath("__Installer/")}" /E /I /Y /Q >nul 2>&1 && ' \
+        f'xcopy "{originpath.joinpath("bin")}" "{installpath.joinpath("bin/")}" /E /I /Y /Q >nul 2>&1 && ' \
+        f'xcopy "{originpath.joinpath("Core")}" "{installpath.joinpath("Core/")}" /E /I /Y /Q >nul 2>&1 && ' \
+        f'xcopy "{originpath.joinpath("platform")}" "{installpath.joinpath("platform/")}" /E /I /Y /Q >nul 2>&1 && ' \
+        f'xcopy "{originpath.joinpath("Support")}" "{installpath.joinpath("Support/")}" /E /I /Y /Q >nul 2>&1 && ' \
+        f'xcopy "{originpath.joinpath("build.txt")}" "{installpath}" /Y /Q >nul 2>&1 && ' \
+        f'xcopy "{originpath.joinpath("server.dll")}" "{installpath}" /Y /Q >nul 2>&1 && ' \
+        f'xcopy "{originpath.joinpath("Titanfall2.exe")}" "{installpath}" /Y /Q >nul 2>&1 && ' \
+        f'xcopy "{originpath.joinpath("Titanfall2_trial.exe")}" "{installpath}" /Y /Q >nul 2>&1 && ' \
+        f'mklink /j "{installpath.joinpath("vpk")}" "{originpath.joinpath("vpk")}" >nul 2>&1 && ' \
+        f'mklink /j "{installpath.joinpath("r2")}" "{originpath.joinpath("r2")}" >nul 2>&1 '
+
+    subprocess.Popen(script, cwd=str(Path.cwd()), shell=True).wait()
     print(f"[{time.strftime('%H:%M:%S')}] [info]    Successfully copied TF2 files")
 
 
+# =======================================================
+# Sort GitRelases after pulished Date (idk how to lambda) %TODO
+# =======================================================
 def sort_gitrelease(release: GitRelease):
     return release.published_at
 
 
+# ==========
+# Exceptions
+# ==========
 class NoValidRelease(Exception):
     pass
 
@@ -246,6 +351,9 @@ class HaltandRunScripts(Exception):
     pass
 
 
+# =====================================
+# Handles the updating for this program
+# =====================================
 class ManagerUpdater:
     def __init__(self, path):
         yamlpath = config
@@ -321,12 +429,11 @@ class ManagerUpdater:
         pass_args = " -onlyCheckAll" if onlyCheckAll else ""
         pass_args += " -updateAllIgnoreManager" if updateAll else ""
         pass_args += " ".join(sys.argv[1:])
-        print("pass args for reboot not working porperly")
         script_queue.append(
             f"echo [{time.strftime('%H:%M:%S')}] [info]    Running self-replacer            for {self.blockname} && "
             f"timeout /t 5 && "
-            f'del "{self.file}" && '
-            f'move "{newfile}" "{self.file}" && '
+            f'del "{self.file}" >nul 2>&1 && '
+            f'move "{newfile}" "{self.file}" >nul 2>&1 && '
             f"echo [{time.strftime('%H:%M:%S')}] [info]    Installed successfully update    for {self.blockname} && "
             f"echo [{time.strftime('%H:%M:%S')}] [info]    Launching latest install         of  {self.file.name}{pass_args} && "
             f'"{self.file.name}"{pass_args}'
@@ -334,6 +441,9 @@ class ManagerUpdater:
         raise HaltandRunScripts("restart manager")
 
 
+# =============================
+# Handles the updating for mods
+# =============================
 class ModUpdater:
     def __init__(self, path):
         serverpath = ""
@@ -349,9 +459,11 @@ class ModUpdater:
         self.ignore_prerelease = (self.yamlpath["ignore_prerelease"].get(confuse.Optional(bool, default=True)))
         self.repository = self.yamlpath["repository"].get()
         if len(str(serverpath)) != 0:
-            self.install_dir = Path(serverpath / self.yamlpath["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))
+            self.install_dir = Path(
+                serverpath / self.yamlpath["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))
         else:
-            self.install_dir = Path(self.yamlpath["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))
+            self.install_dir = Path(
+                self.yamlpath["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))
         self._file = self.yamlpath["file"].get(confuse.Optional(str, default="mod.json"))
         self.file = (self.install_dir / self._file).resolve()
         self.exclude_files = self.yamlpath["exclude_files"].get(confuse.Optional(list, default=[]))
@@ -359,7 +471,7 @@ class ModUpdater:
             self.repo = g.get_repo(self.repository)
             self.is_github = True
         except UnknownObjectException:
-            self.repo = "https://northstar.thunderstore.io/api/experimental/package/"+self.repository
+            self.repo = "https://northstar.thunderstore.io/api/experimental/package/" + self.repository
             self.is_github = False
 
     @property
@@ -458,9 +570,9 @@ class ModUpdater:
                 url = self.asset(release)
             else:
                 t = datetime.fromisoformat(str(requests.get(self.repo).json()["latest"]["date_created"]).split(".")[0])
-                if updateAllIgnoreManager\
-                        or updateServers\
-                        or updateClient\
+                if updateAllIgnoreManager \
+                        or updateServers \
+                        or updateClient \
                         or t > self.last_update:
                     url = requests.get(self.repo).json()["latest"]["download_url"]
                 else:
@@ -472,75 +584,110 @@ class ModUpdater:
                 if self.is_github:
                     self.last_update = release.published_at
                 else:
-                    self.last_update = datetime.fromisoformat(str(requests.get(self.repo).json()["latest"]["date_created"]).split(".")[0])
+                    self.last_update = datetime.fromisoformat(
+                        str(requests.get(self.repo).json()["latest"]["date_created"]).split(".")[0])
                 print(f"[{time.strftime('%H:%M:%S')}] [info]    Installed successfully update    for {self.blockname}")
 
         except NoValidRelease:
             print(f"[{time.strftime('%H:%M:%S')}] [info]    Latest Version already installed for {self.blockname}")
             return
         except NoValidAsset:
-            print(f"[{time.strftime('%H:%M:%S')}] [warning] Possibly faulty        release   for {self.blockname} published Version {release.tag_name} has no valit assets")
+            print(
+                f"[{time.strftime('%H:%M:%S')}] [warning] Possibly faulty        release   for {self.blockname} published Version {release.tag_name} has no valit assets")
             return
 
 
+# ====
+# main
+# ====
 def main():
+    # prints help
+    if showhelp:
+        printhelp()
+        return
+
+    # only launches the defined launcher
+    if onlyLaunch:
+        launcher()
+        return
+
+    # check for updates/ manages updates / installs updates
     try:
-        if showhelp:
-            printhelp()
-            return
-
-        if onlyLaunch:
-            launcher()
-            return
-
-        while not updater():  # restart when encountering a GitHub rate error
+        # restart updater when encountering a GitHub rate error
+        while not updater():
             print(f"[{time.strftime('%H:%M:%S')}] [info]    Waiting and restarting Updater in 60s...")
             time.sleep(60)
-
-        if launchServers:
-            launchservers()
-
-        if not onlyCheckAll\
-                and not onlyCheckClient\
-                and not onlyCheckServers:
-            launcher()
-
     except HaltandRunScripts:
         for script in script_queue:
             subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
+        return
+
+    # launches all enabled servers
+    if launchServers:
+        launchservers()
+
+    # check if allowed to launch launcher
+    if not onlyCheckAll \
+            and not onlyCheckClient \
+            and not onlyCheckServers:
+        launcher()
 
 
+# =================================
+# reads config and performs updates
+# =================================
 def updater() -> bool:
     yamlpath = []
-    for section in [s for s in config.keys() if s not in ["Example", "Launcher"]]:
+    for section in [s for s in config.keys() if s not in ["Launcher"]]:
+        yamlpath = [section]
         try:
             if section == "Manager" and not updateAllIgnoreManager and not onlyCheckServers and not updateServers:
-                yamlpath = [section]
-                print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
+                if config[section].get() is None:
+                    print(
+                        f"[{time.strftime('%H:%M:%S')}] [warning] {'/'.join(yamlpath)} does not have subsections defined")
+                    return True
+                print(
+                    f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
                 ManagerUpdater(yamlpath).run()
             if section == "Mods" and not onlyCheckServers and not updateServers:
+                if config[section].get() is None:
+                    print(
+                        f"[{time.strftime('%H:%M:%S')}] [warning] {'/'.join(yamlpath)} does not have subsections defined")
+                    return True
                 for mod in config[section]:
                     yamlpath = [section, mod]
-                    print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
+                    print(
+                        f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
                     ModUpdater(yamlpath).run()
             if (section == "Servers" and not onlyCheckClient and not updateClient) or \
                     (section == "Servers" and updateServers):
+                if config[section].get() is None:
+                    print(
+                        f"[{time.strftime('%H:%M:%S')}] [warning] {'/'.join(yamlpath)} does not have subsections defined")
+                    return True
                 if not updateServers:
-                    if not config[section]["enabled"].get(confuse.Optional(bool, default=True)) and not updateAllIgnoreManager:
+                    if not config[section]["enabled"].get(
+                            confuse.Optional(bool, default=True)) and not updateAllIgnoreManager:
                         print(f"[{time.strftime('%H:%M:%S')}] [info]    Searvers are disabled.")
                         continue
                 for server in config[section]:
                     if server != "enabled":
+                        if config[section].get() is None:
+                            print(
+                                f"[{time.strftime('%H:%M:%S')}] [warning] {'/'.join(yamlpath)} does not have subsections defined")
+                            return True
                         if not updateServers and not updateAllIgnoreManager:
                             if not config[section][server]["enabled"].get(confuse.Optional(bool, default=True)):
                                 print(f"[{time.strftime('%H:%M:%S')}] [info]    Searver {server} is disabled.")
                                 continue
-                        server_path = Path(config[section][server]["dir"].get(confuse.Optional(str, default=f"./servers/{server}")))
+                        server_path = Path(
+                            config[section][server]["dir"].get(confuse.Optional(str, default=f"./servers/{server}")))
                         for con in config[section][server]:
                             if con == "Mods":
                                 for mod in config[section][server][con]:
                                     yamlpath = [section, server, con, mod]
-                                    print(f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
+                                    print(
+                                        f"[{time.strftime('%H:%M:%S')}] [info]    Searching for      new releases  for {'/'.join(yamlpath)}...")
                                     ModUpdater(yamlpath).run()
                             elif con == "config":
                                 for file in config[section][server][con]:
@@ -549,15 +696,17 @@ def updater() -> bool:
                                     if file == "ns_startup_args_dedi.txt":
                                         x = Path(server_path / file)
                                         if not x.exists():
-                                            print(f"[{time.strftime('%H:%M:%S')}] [warning] file in config: {'/'.join(yamlpath)} not found. check spelling or run the manager with -updateServers if northstar is not installed")
+                                            print(
+                                                f"[{time.strftime('%H:%M:%S')}] [warning] file in config: {'/'.join(yamlpath)} not found. check spelling or run the manager with -updateServers if northstar is not installed")
 
                                         replace_str = ""
-                                        config_list = str(config[section][server][con][file].get()).strip()+" "
+                                        config_list = str(config[section][server][con][file].get()).strip() + " "
                                         c_dict = {}
                                         for c in list(config_list.split("+")[1:]):
                                             c.strip()
                                             split = c.split(" ")
-                                            c_dict["+"+split[0]] = split[1] if len(split[1:-1]) == 1 else " ".join(split[1:-1])
+                                            c_dict["+" + split[0]] = split[1] if len(split[1:-1]) == 1 else " ".join(
+                                                split[1:-1])
 
                                         with open(x, 'r') as replace:
                                             while line := replace.readline():
@@ -565,7 +714,7 @@ def updater() -> bool:
                                                 va = list(line.split("+")[1:])
                                                 for line_value in va:
                                                     split = line_value.split(" ")
-                                                    key = "+"+split[0]
+                                                    key = "+" + split[0]
                                                     va = split[1] if len(split[1:-1]) == 1 else " ".join(split[1:-1])
 
                                                     if key in c_dict.keys():
@@ -585,9 +734,11 @@ def updater() -> bool:
                                             yamlpath = [section, server, con, file, file_section]
                                             if file_section == "ConVars":
 
-                                                x = Path(server_path / "R2Northstar/mods/Northstar.CustomServers" / file)
+                                                x = Path(
+                                                    server_path / "R2Northstar/mods/Northstar.CustomServers" / file)
                                                 if not x.exists():
-                                                    print(f"[{time.strftime('%H:%M:%S')}] [warning] file in config: {'/'.join(yamlpath)} not found. check spelling or run the manager with -updateServers if northstar is not installed")
+                                                    print(
+                                                        f"[{time.strftime('%H:%M:%S')}] [warning] file in config: {'/'.join(yamlpath)} not found. check spelling or run the manager with -updateServers if northstar is not installed")
 
                                                 config_list = config[section][server][con][file][file_section].get()
                                                 # read config
@@ -620,9 +771,11 @@ def updater() -> bool:
                                                 print(f"Unknown section in {yamlpath}")
 
                                     elif file == "autoexec_ns_server.cfg":
-                                        x = Path(server_path / "R2Northstar/mods/Northstar.CustomServers/mod/cfg" / file)
+                                        x = Path(
+                                            server_path / "R2Northstar/mods/Northstar.CustomServers/mod/cfg" / file)
                                         if not x.exists():
-                                            print(f"[{time.strftime('%H:%M:%S')}] [warning] file in config: {'/'.join(yamlpath)} not found. check spelling or run the manager with -updateServers if northstar is not installed")
+                                            print(
+                                                f"[{time.strftime('%H:%M:%S')}] [warning] file in config: {'/'.join(yamlpath)} not found. check spelling or run the manager with -updateServers if northstar is not installed")
 
                                         replace_str = ""
                                         config_list = config[section][server][con][file].get().copy()
@@ -661,21 +814,27 @@ def updater() -> bool:
                                             replace.write(replace_str)
 
                         if not server_path.joinpath("Titanfall2.exe").exists():
-                            print(f"[{time.strftime('%H:%M:%S')}] [warning] Titanfall2 files not existing at the server location.")
+                            print(
+                                f"[{time.strftime('%H:%M:%S')}] [warning] Titanfall2 files invalid or don't exists at the server location")
                             install_tf2(server_path)
 
         except RateLimitExceededException:
             print(f"[{time.strftime('%H:%M:%S')}] [warning] GitHub rate exceeded for {'/'.join(yamlpath)}")
-            print(f"[{time.strftime('%H:%M:%S')}] [info]    Available requests left {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+            print(
+                f"[{time.strftime('%H:%M:%S')}] [info]    Available requests left {g.rate_limiting[0]}/{g.rate_limiting[1]}")
             if "y" != input("Wait and try update again in 60sec? (y/n) "):
                 break
             return False
         except FileNotInZip:
-            print(f"[{time.strftime('%H:%M:%S')}] [warning] Zip file for {'/'.join(yamlpath)} doesn't contain expected files")
+            print(
+                f"[{time.strftime('%H:%M:%S')}] [warning] Zip file for {'/'.join(yamlpath)} doesn't contain expected files")
     print(f"[{time.strftime('%H:%M:%S')}] [info]    Successfully checkt all mods")
     return True
 
 
+# =============================
+# launches the defined launcher
+# =============================
 def launcher():
     script = f'"{config["Launcher"]["filename"].get()}" {config["Launcher"]["argumnets"].get()} {" ".join(sys.argv[1:])}'
     pre_launch_origin()
@@ -686,6 +845,9 @@ def launcher():
         print(f"[{time.strftime('%H:%M:%S')}] [warning] Could not run {script}")
 
 
+# ==================
+# prelaunches origin
+# ==================
 def pre_launch_origin():
     script = "C:/Program Files (x86)/Origin/Origin.exe"
     try:
@@ -699,6 +861,9 @@ def pre_launch_origin():
         print(f"[{time.strftime('%H:%M:%S')}] [warning] Could not run {script}")
 
 
+# ============================
+# launches all enabled servers
+# ============================
 def launchservers():
     scripts = []
 
@@ -711,7 +876,7 @@ def launchservers():
                 print(f"{server} is disabled")
                 continue
             else:
-                print("launch "+server)
+                print("launch " + server)
                 server_dir = config["Servers"][server]["dir"]
                 scripts.append(f'start cmd.exe /k "cd /d {server_dir} && NorthstarLauncher.exe -dedicated"')
 
@@ -725,5 +890,8 @@ def launchservers():
 
 
 main()
+# ============
+# write config
+# ============
 with open("manager_config.yaml", "w+") as f:
     yaml.dump(conf_comments, f)
