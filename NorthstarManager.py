@@ -97,7 +97,6 @@ try:
 except ValueError:
     pass
 
-# %TODO add to documentation
 launchServers = False  # launches all servers which are not disabled
 try:
     i = sys.argv.index("-launchServers")
@@ -203,38 +202,54 @@ else:
 config = confuse.Configuration("NorthstarManager", __name__)
 config.set(conf_comments)
 
-# Check if loaded conf is valid/ minimal conf is given to run northstar
-print(f"[{time.strftime('%H:%M:%S')}] [info]    Validating 'manager_config.yaml'...")
-valid_test = {
-    'Launcher': {
-        'filename': 'NorthstarLauncher.exe',
-    },
-    'Manager': {
-        'repository': 'FromWau/NorthstarManager',
-        'file': 'NorthstarManager.exe',
-    },
-    'Mods': {
-        'Northstar': {
-            'repository': 'R2Northstar/Northstar',
-            'install_dir': '.',
-            'file': 'NorthstarLauncher.exe'
+
+# ====================
+# validates the config
+# ====================
+def valid_min_conf() -> bool:
+    print(f"[{time.strftime('%H:%M:%S')}] [info]    Validating 'manager_config.yaml'...")
+    valid_test = {
+        'Launcher': {
+            'filename': 'NorthstarLauncher.exe',
+        },
+        'Manager': {
+            'repository': 'FromWau/NorthstarManager',
+            'file': 'NorthstarManager.exe',
+        },
+        'Mods': {
+            'Northstar': {
+                'repository': 'R2Northstar/Northstar',
+                'install_dir': '.',
+                'file': 'NorthstarLauncher.exe'
+            }
         }
     }
-}
-valid_counter = 0
-for key in valid_test.keys():
-    for section in valid_test[key]:
-        if (f"{section}", f"{valid_test[key][section]}") in config.get()[key].items():
-            valid_counter += 1
-            continue
-        for section2 in valid_test[key][section]:
-            if (f"{section2}", f"{valid_test[key][section][section2]}") in config.get()[key][section].items():
-                valid_counter += 1
+    valid_keys = None
+    valid_sections = None
+    valid_counter = 0
+    try:
+        for valid_keys in valid_test.keys():
+            for valid_sections in valid_test[valid_keys]:
+                if (f"{valid_sections}", f"{valid_test[valid_keys][valid_sections]}") in config.get()[valid_keys].items():
+                    valid_counter += 1
+                    continue
+                for valid_subsection in valid_test[valid_keys][valid_sections]:
+                    if (f"{valid_subsection}", f"{valid_test[valid_keys][valid_sections][valid_subsection]}") in config.get()[valid_keys][valid_sections].items():
+                        valid_counter += 1
+        if valid_counter < 6:
+            print(f"[{time.strftime('%H:%M:%S')}] [error]   'manager_config.yaml' is empty or invalid")
+            return False
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    Validation successful for 'manager_config.yaml'")
+        return True
 
-if valid_counter < 6:
-    print(f"[{time.strftime('%H:%M:%S')}] [error]   'manager_config.yaml' is empty or invalid")
+    except (TypeError, AttributeError, KeyError):
+        print(f"[{time.strftime('%H:%M:%S')}] [error]   'manager_config.yaml' is missing the section {'/'.join([valid_keys, valid_sections])}")
+        return False
+
+
+# Check if loaded conf is valid/ minimal conf is given to run northstar
+if not valid_min_conf():
     exit(1)
-print(f"[{time.strftime('%H:%M:%S')}] [info]    Validation successful for 'manager_config.yaml'")
 
 # ===========================
 # Read token and setup githuh
@@ -306,9 +321,7 @@ def install_tf2(installpath):
     originpath = Path.cwd()
     print(
         f"[{time.strftime('%H:%M:%S')}] [info]    Copying TF2 files and creating a junction for vpk, r2 to {installpath.absolute()}")
-
     script = \
-        'echo OFF && ' \
         f'xcopy "{originpath.joinpath("__Installer")}" "{installpath.joinpath("__Installer/")}" /E /I /Y /Q >nul 2>&1 && ' \
         f'xcopy "{originpath.joinpath("bin")}" "{installpath.joinpath("bin/")}" /E /I /Y /Q >nul 2>&1 && ' \
         f'xcopy "{originpath.joinpath("Core")}" "{installpath.joinpath("Core/")}" /E /I /Y /Q >nul 2>&1 && ' \
@@ -320,7 +333,6 @@ def install_tf2(installpath):
         f'xcopy "{originpath.joinpath("Titanfall2_trial.exe")}" "{installpath}" /Y /Q >nul 2>&1 && ' \
         f'mklink /j "{installpath.joinpath("vpk")}" "{originpath.joinpath("vpk")}" >nul 2>&1 && ' \
         f'mklink /j "{installpath.joinpath("r2")}" "{originpath.joinpath("r2")}" >nul 2>&1 '
-
     subprocess.Popen(script, cwd=str(Path.cwd()), shell=True).wait()
     print(f"[{time.strftime('%H:%M:%S')}] [info]    Successfully copied TF2 files")
 
@@ -356,19 +368,24 @@ class HaltandRunScripts(Exception):
 # =====================================
 class ManagerUpdater:
     def __init__(self, path):
-        yamlpath = config
-        for index in path:
-            yamlpath = yamlpath[index]
+        try:
+            yamlpath = config
+            for index in path:
+                yamlpath = yamlpath[index]
 
-        self.yamlpath = yamlpath
-        self.blockname = path[-1]
-        self.repository = yamlpath["repository"].get()
-        self.repo = g.get_repo(self.repository)
-        self.ignore_updates = yamlpath["ignore_updates"].get(confuse.Optional(bool, default=False))
-        self.ignore_prerelease = yamlpath["ignore_prerelease"].get(confuse.Optional(bool, default=True))
-        self.install_dir = Path(yamlpath["install_dir"].get(confuse.Optional(str, default=".")))
-        self._file = yamlpath["file"].get(confuse.Optional(str, default="NorthstarController.exe"))
-        self.file = (self.install_dir / self._file).resolve()
+            self.yamlpath = yamlpath
+            self.blockname = path[-1]
+            self.repository = yamlpath["repository"].get()
+            self.repo = g.get_repo(self.repository)
+            self.ignore_updates = yamlpath["ignore_updates"].get(confuse.Optional(bool, default=False))
+            self.ignore_prerelease = yamlpath["ignore_prerelease"].get(confuse.Optional(bool, default=True))
+            self.install_dir = Path(yamlpath["install_dir"].get(confuse.Optional(str, default=".")))
+            self._file = yamlpath["file"].get(confuse.Optional(str, default="NorthstarController.exe"))
+            self.file = (self.install_dir / self._file).resolve()
+        except ConfigTypeError:
+            print(
+                f"[{time.strftime('%H:%M:%S')}] [error]   'manager_config.yaml' is invalid at section: {'/'.join(path)}")
+            quit(1)
 
     @property
     def last_update(self):
@@ -446,33 +463,38 @@ class ManagerUpdater:
 # =============================
 class ModUpdater:
     def __init__(self, path):
-        serverpath = ""
-        if path[0] == "Servers":
-            serverpath = Path(config[path[0]][path[1]]["dir"].get(confuse.Optional(str, default=".")))
-        yamlpath = config
-        for index in path:
-            yamlpath = yamlpath[index]
-
-        self.yamlpath = yamlpath
-        self.blockname = path[-1]
-        self.ignore_updates = self.yamlpath["ignore_updates"].get(confuse.Optional(bool, default=False))
-        self.ignore_prerelease = (self.yamlpath["ignore_prerelease"].get(confuse.Optional(bool, default=True)))
-        self.repository = self.yamlpath["repository"].get()
-        if len(str(serverpath)) != 0:
-            self.install_dir = Path(
-                serverpath / self.yamlpath["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))
-        else:
-            self.install_dir = Path(
-                self.yamlpath["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))
-        self._file = self.yamlpath["file"].get(confuse.Optional(str, default="mod.json"))
-        self.file = (self.install_dir / self._file).resolve()
-        self.exclude_files = self.yamlpath["exclude_files"].get(confuse.Optional(list, default=[]))
         try:
-            self.repo = g.get_repo(self.repository)
-            self.is_github = True
-        except UnknownObjectException:
-            self.repo = "https://northstar.thunderstore.io/api/experimental/package/" + self.repository
-            self.is_github = False
+            serverpath = ""
+            if path[0] == "Servers":
+                serverpath = Path(config[path[0]][path[1]]["dir"].get(confuse.Optional(str, default=".")))
+            yamlpath = config
+            for index in path:
+                yamlpath = yamlpath[index]
+
+            self.yamlpath = yamlpath
+            self.blockname = path[-1]
+            self.ignore_updates = self.yamlpath["ignore_updates"].get(confuse.Optional(bool, default=False))
+            self.ignore_prerelease = (self.yamlpath["ignore_prerelease"].get(confuse.Optional(bool, default=True)))
+            self.repository = self.yamlpath["repository"].get()
+            if len(str(serverpath)) != 0:
+                self.install_dir = Path(
+                    serverpath / self.yamlpath["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))
+            else:
+                self.install_dir = Path(
+                    self.yamlpath["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))
+            self._file = self.yamlpath["file"].get(confuse.Optional(str, default="mod.json"))
+            self.file = (self.install_dir / self._file).resolve()
+            self.exclude_files = self.yamlpath["exclude_files"].get(confuse.Optional(list, default=[]))
+            try:
+                self.repo = g.get_repo(self.repository)
+                self.is_github = True
+            except UnknownObjectException:
+                self.repo = "https://northstar.thunderstore.io/api/experimental/package/" + self.repository
+                self.is_github = False
+        except ConfigTypeError:
+            print(
+                f"[{time.strftime('%H:%M:%S')}] [error]   'manager_config.yaml' is invalid at section: {'/'.join(path)}")
+            quit(1)
 
     @property
     def last_update(self):
@@ -626,7 +648,7 @@ def main():
     if launchServers:
         launchservers()
 
-    # check if allowed to launch launcher
+    # check if allowed to launch the launcher
     if not onlyCheckAll \
             and not onlyCheckClient \
             and not onlyCheckServers:
@@ -637,7 +659,6 @@ def main():
 # reads config and performs updates
 # =================================
 def updater() -> bool:
-    yamlpath = []
     for section in [s for s in config.keys() if s not in ["Launcher"]]:
         yamlpath = [section]
         try:
@@ -663,7 +684,7 @@ def updater() -> bool:
                     (section == "Servers" and updateServers):
                 if config[section].get() is None:
                     print(
-                        f"[{time.strftime('%H:%M:%S')}] [warning] {'/'.join(yamlpath)} does not have subsections defined")
+                        f"[{time.strftime('%H:%M:%S')}] [warning] Skipping Section {'/'.join(yamlpath)}, config is invalid/ is missing subsections")
                     return True
                 if not updateServers:
                     if not config[section]["enabled"].get(

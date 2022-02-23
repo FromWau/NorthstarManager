@@ -1,7 +1,7 @@
 # Global - Settings which persist for every other section
 # ======================================================
 Global:
-    github_token: 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 # token for GitHub, can be acquired from: https://github.com/settings/tokens
+    github_token: # token for GitHub, can be acquired from: https://github.com/settings/tokens
 
 # Launcher - Defines the to be launched Application with optional args
 # ====================================================================
