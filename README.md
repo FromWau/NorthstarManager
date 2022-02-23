@@ -49,4 +49,5 @@ NorthstarManager.exe can be launched with following flags:
 | -onlyCheckServers | Runs the updater over all repos defined in the 'config_updater.ini' under section Servers without launching the defined launcher in the 'manager_conf.ymal'. |
 | -onlyCheckClient | Runs the updater over all repos defined in the 'config_updater.ini' under section Manager and Mods without launching the defined launcher in the 'manager_conf.ymal'. |
 | -onlyLaunch | Only launches the defined file from the Launcher section, without checking fpr updates. |
+| -launchServers | Launches all enabled servers from the 'manager_config.yaml' |
 
