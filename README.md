@@ -1,6 +1,6 @@
 NorthstarManager
 ====
-is a CLI based updater tool for [Northstar](https://github.com/R2Northstar/Northstar) and for custom Northstar mods published on Github. The Manager can be configured via the 'updater_config.ini' or/and via Launch arguments. <br>
+is a CLI based updater tool for [Northstar](https://github.com/R2Northstar/Northstar) and for custom Northstar mods published on Github. The Manager can be configured via the 'manager_config.yaml' or/and via Launch arguments. <br>
 
 # How to install
 1. [Download the latest NorthstarManager.exe](https://github.com/FromWau/NorthstarManager/releases/latest/download/NorthstarManager.exe) or download another Version from the [release page](https://github.com/FromWau/NorthstarManager/releases).
@@ -41,12 +41,15 @@ NorthstarManager.exe can be launched with following flags:
 | Launch Arguments | Description |
 | --- | --- |
 | -help | Prints the help section for NorthstarManager. |
-| -updateAll | Force updates all repos defined in the 'config_updater.ini' to the latest release regardless of the latest release maybe being already installed, ignoring config flags: 'ignore_updates'. |
-| -updateAllIgnoreManager | Force updates all repos defined in the 'config_updater.ini', except the Manager section, to the latest release regardless of the latest release maybe being already installed, ignoring config flags: 'ignore_updates'. |
-| -updateServers | Force updates all repos defined in the 'config_updater.ini' under the Servers section. |
-| -updateClient | Force updates all repos defined in the 'config_updater.ini' under the Manager and Mods section. |
-| -onlyCheckAll | Runs the updater over all repos defined in the 'config_updater.ini' without launching the defined launcher in the 'manager_conf.ymal'. |
-| -onlyCheckServers | Runs the updater over all repos defined in the 'config_updater.ini' under section Servers without launching the defined launcher in the 'manager_conf.ymal'. |
-| -onlyCheckClient | Runs the updater over all repos defined in the 'config_updater.ini' under section Manager and Mods without launching the defined launcher in the 'manager_conf.ymal'. |
+| -updateAll | Force updates all repos defined in the 'manager_config.yaml' to the latest release regardless of the latest release maybe being already installed, ignoring config flags: 'ignore_updates'. |
+| -updateAllIgnoreManager | Force updates all repos defined in the 'manager_config.yaml', except the Manager section, to the latest release regardless of the latest release maybe being already installed, ignoring config flags: 'ignore_updates'. |
+| -updateServers | Force updates all repos defined in the 'manager_config.yaml' under the Servers section. |
+| -updateClient | Force updates all repos defined in the 'manager_config.yaml' under the Manager and Mods section. |
+| -onlyCheckAll | Runs the updater over all repos defined in the 'manager_config.yaml' without launching the defined launcher in the 'manager_conf.ymal'. |
+| -onlyCheckServers | Runs the updater over all repos defined in the 'manager_config.yaml' under section Servers without launching the defined launcher in the 'manager_conf.ymal'. |
+| -onlyCheckClient | Runs the updater over all repos defined in the 'manager_config.yaml' under section Manager and Mods without launching the defined launcher in the 'manager_conf.ymal'. |
 | -onlyLaunch | Only launches the defined file from the Launcher section, without checking fpr updates. |
+| -launchServers | Launches all enabled servers from the 'manager_config.yaml'. |
 
+## Compile it yourself
+Compiliation from py to exe is done via nuitka, but you could also use pyinstaller or something else. The compile.ps1 runs a pip install for the required python modules and starts the nuitka compilation.        

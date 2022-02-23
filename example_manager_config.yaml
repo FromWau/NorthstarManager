@@ -8,7 +8,7 @@ Global:
 Launcher:
     filename: NorthstarLauncher.exe  # launches the NorthstarLauncher
 #    filename: Titanfall2.exe  # launches Vanilla Titanfall2
-    argumnets: ''  # Arguments for the launcher. The NorthstarLauncher uses also the args defined in the ns_startup_args.txt file
+#    argumnets: ''  # Arguments for the launcher. The NorthstarLauncher uses also the args defined in the ns_startup_args.txt file
 
 # Manager - Config for the Manager of Northstar
 # =============================================
@@ -40,7 +40,7 @@ Mods:
 
 # Servers - List of all Servers that should be managed
 # ====================================================
-Servers:
+#Servers:
 #    enabled: false  # disables all listed servers for update checks, and they will not get launched
 #
 #    How to install/ configure a server (you do not need to download or setup anything just configure what you want down below) (example for Kraber9k Server):
