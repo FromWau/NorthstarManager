@@ -703,6 +703,11 @@ def updater() -> bool:
                                 continue
                         server_path = Path(
                             config[section][server]["dir"].get(confuse.Optional(str, default=f"./servers/{server}")))
+
+                        if not server_path.joinpath("Titanfall2.exe").exists():
+                            print(f"[{time.strftime('%H:%M:%S')}] [warning] Titanfall2 files invalid or don't exists at the server location")
+                            install_tf2(server_path)
+
                         for con in config[section][server]:
                             if con == "Mods":
                                 for mod in config[section][server][con]:
@@ -834,11 +839,6 @@ def updater() -> bool:
                                         with open(x, "w") as replace:
                                             replace.write(replace_str)
 
-                        if not server_path.joinpath("Titanfall2.exe").exists():
-                            print(
-                                f"[{time.strftime('%H:%M:%S')}] [warning] Titanfall2 files invalid or don't exists at the server location")
-                            install_tf2(server_path)
-
         except RateLimitExceededException:
             print(f"[{time.strftime('%H:%M:%S')}] [warning] GitHub rate exceeded for {'/'.join(yamlpath)}")
             print(
@@ -857,7 +857,7 @@ def updater() -> bool:
 # launches the defined launcher
 # =============================
 def launcher():
-    script = f'"{config["Launcher"]["filename"].get()}" {config["Launcher"]["argumnets"].get()} {" ".join(sys.argv[1:])}'
+    script = f'"{config["Launcher"]["filename"].get()}" {config["Launcher"]["arguments"].get()} {" ".join(sys.argv[1:])}'
     pre_launch_origin()
     try:
         print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching {script}")
