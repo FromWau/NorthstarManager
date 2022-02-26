@@ -66,14 +66,6 @@ try:
 except ValueError:
     pass
 
-noLaunch = False  # runs the check for updates on the client and servers
-try:
-    i = sys.argv.index("-noLaunch")
-    args += " " + sys.argv.pop(i)
-    noLaunch = True
-except ValueError:
-    pass
-
 onlyCheckServers = False  # only runs the check for updates on the servers
 try:
     i = sys.argv.index("-onlyCheckServers")
@@ -90,23 +82,23 @@ try:
 except ValueError:
     pass
 
-onlyLaunch = False  # no updates and runs launcher
+noUpdates = False  # disables the check for updates
 try:
-    i = sys.argv.index("-onlyLaunch")
+    i = sys.argv.index("-noUpdates")
     args += " " + sys.argv.pop(i)
-    onlyLaunch = True
+    noUpdates = True
+except ValueError:
+    pass
+
+noLaunch = False  # does not launch the client
+try:
+    i = sys.argv.index("-noLaunch")
+    args += " " + sys.argv.pop(i)
+    noLaunch = True
 except ValueError:
     pass
 
 launchServers = False  # launches all servers which are not disabled
-try:
-    i = sys.argv.index("-launchServers")
-    args += " " + sys.argv.pop(i)
-    launchServers = True
-except ValueError:
-    pass
-
-launchClient = False  # launches all servers which are not disabled
 try:
     i = sys.argv.index("-launchServers")
     args += " " + sys.argv.pop(i)
@@ -219,7 +211,7 @@ config.set(conf_comments)
 # validates the config
 # ====================
 def valid_min_conf() -> bool:
-    print(f"[{time.strftime('%H:%M:%S')}] [info]    Validating 'manager_config.yaml'...")
+    print(f"[{time.strftime('%H:%M:%S')}] [info]    Running basic validation for 'manager_config.yaml'...")
     valid_test = {
         'Launcher': {
             'filename': 'NorthstarLauncher.exe',
@@ -302,7 +294,7 @@ def printhelp():
         "-noLaunch ............. Runs the updater over all repos defined in the 'manager_config.yaml' without launching the defined launcher in the 'manager_conf.ymal'.\n"
         "-onlyCheckServers ......... Runs the updater over all repos defined in the 'manager_config.yaml' under section Servers without launching the defined launcher in the 'manager_conf.ymal'.\n"
         "-onlyCheckClient .......... Runs the updater over all repos defined in the 'manager_config.yaml' under section Manager and Mods without launching the defined launcher in the 'manager_conf.ymal'.\n"
-        "-onlyLaunch ............... Only launches the defined file from the Launcher section, without checking fpr updates.\n"
+        "-launchClient ............... Only launches the defined file from the Launcher section, without checking fpr updates.\n"
         "-launchServers ............ Launches all enabled servers from the 'manager_config.yaml'"
         "\n"
         "Northstar Client/ vanilla TF2 args should be put into the ns_startup_args.txt or ns_startup_args_dedi.txt for dedicated servers\n"
@@ -640,29 +632,27 @@ def main():
         printhelp()
         return
 
-    # only launches the defined launcher
-    if onlyLaunch:
-        launcher()
-        return
+    if not noUpdates:
+        # check for updates/ manages updates / installs updates
+        try:
+            # restart updater when encountering a GitHub rate error
+            while not updater():
+                print(f"[{time.strftime('%H:%M:%S')}] [info]    Waiting and restarting Updater in 60s...")
+                time.sleep(60)
+        except HaltandRunScripts:
+            for script in script_queue:
+                subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
+            return
 
-    # check for updates/ manages updates / installs updates
-    try:
-        # restart updater when encountering a GitHub rate error
-        while not updater():
-            print(f"[{time.strftime('%H:%M:%S')}] [info]    Waiting and restarting Updater in 60s...")
-            time.sleep(60)
-    except HaltandRunScripts:
-        for script in script_queue:
-            subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
-        return
-
-        # launches all enabled servers
+    # launches all enabled servers
     if launchServers:
         launchservers()
 
     # check if allowed to launch the launcher
     if not noLaunch:
         launcher()
+
+    return
 
 
 # =================================
@@ -899,23 +889,23 @@ def launchservers():
     scripts = []
 
     if not config["Servers"]["enabled"].get(confuse.Optional(bool, default=True)):
-        print("Servers are disabled.")
+        print(f"[{time.strftime('%H:%M:%S')}] [info]    All servers are disabled")
         return
     for server in config["Servers"]:
         if server != "enabled":
             if not config["Servers"][server]["enabled"].get(confuse.Optional(bool, default=True)):
-                print(f"{server} is disabled")
+                print(f"[{time.strftime('%H:%M:%S')}] [info]    Server: {server} is disabled")
                 continue
             else:
-                print("launch " + server)
+                print(f"[{time.strftime('%H:%M:%S')}] [info]    Launching {server}")
                 server_dir = config["Servers"][server]["dir"]
-                scripts.append(f'start cmd.exe /k "cd /d {server_dir} && NorthstarLauncher.exe -dedicated"')
+                scripts.append(f'start cmd.exe /c "cd /d {server_dir} && NorthstarLauncher.exe -dedicated"')
 
     if len(scripts) == 0:
-        print("No enabled Servers found.")
+        print(f"[{time.strftime('%H:%M:%S')}] [warning] No enabled Servers found.")
         return
 
-    pre_launch_origin()
+    # pre_launch_origin() # Needed for servers? $TODO
     for script in scripts:
         subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
 
@@ -926,3 +916,5 @@ main()
 # ============
 with open("manager_config.yaml", "w+") as f:
     yaml.dump(conf_comments, f)
+print(f"[{time.strftime('%H:%M:%S')}] [info]    Successfully run Manager")
+exit(0)
