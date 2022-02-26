@@ -13,6 +13,7 @@ from pathlib import Path
 import time
 from datetime import datetime, timedelta
 
+from ruamel.yaml.constructor import DuplicateKeyError
 from tqdm import tqdm
 import requests
 from github import Github
@@ -65,11 +66,11 @@ try:
 except ValueError:
     pass
 
-onlyCheckAll = False  # runs the check for updates on the client and servers
+noLaunch = False  # runs the check for updates on the client and servers
 try:
-    i = sys.argv.index("-onlyCheckAll")
+    i = sys.argv.index("-noLaunch")
     args += " " + sys.argv.pop(i)
-    onlyCheckAll = True
+    noLaunch = True
 except ValueError:
     pass
 
@@ -105,8 +106,15 @@ try:
 except ValueError:
     pass
 
-print(
-    f"[{time.strftime('%H:%M:%S')}] [info]    Launched NorthstarManager with {'no args' if len(args) == 0 else 'arguments:' + args}")
+launchClient = False  # launches all servers which are not disabled
+try:
+    i = sys.argv.index("-launchServers")
+    args += " " + sys.argv.pop(i)
+    launchServers = True
+except ValueError:
+    pass
+
+print(f"[{time.strftime('%H:%M:%S')}] [info]    Launched NorthstarManager with {'no args' if len(args) == 0 else 'arguments:' + args}")
 
 # =======================================================
 # Read 'manager_config.yaml' and setup configuration file
@@ -196,8 +204,12 @@ Mods:
 """
     conf_comments = ruamel.yaml.load(default_conf, ruamel.yaml.RoundTripLoader)
 else:
-    with open("manager_config.yaml", "r") as f:
-        conf_comments = yaml.load(f)
+    try:
+        with open("manager_config.yaml", "r") as f:
+            conf_comments = yaml.load(f)
+    except DuplicateKeyError as e:
+        print(f"[{time.strftime('%H:%M:%S')}] [error]   'manager_config.yaml' is invalid. Duplicate Key{e.problem_mark} found")
+        exit(1)
 
 config = confuse.Configuration("NorthstarManager", __name__)
 config.set(conf_comments)
@@ -287,7 +299,7 @@ def printhelp():
         "-updateAllIgnoreManager ... Force updates all repos defined in the 'manager_config.yaml', except the Manager section, to the latest release regardless of the latest release maybe being already installed, ignoring config flags: 'ignore_updates'.\n"
         "-updateServers ............ Force updates all repos defined in the 'manager_config.yaml' under the Servers section.\n"
         "-updateClient ............. Force updates all repos defined in the 'manager_config.yaml' under the Manager and Mods section.\n"
-        "-onlyCheckAll ............. Runs the updater over all repos defined in the 'manager_config.yaml' without launching the defined launcher in the 'manager_conf.ymal'.\n"
+        "-noLaunch ............. Runs the updater over all repos defined in the 'manager_config.yaml' without launching the defined launcher in the 'manager_conf.ymal'.\n"
         "-onlyCheckServers ......... Runs the updater over all repos defined in the 'manager_config.yaml' under section Servers without launching the defined launcher in the 'manager_conf.ymal'.\n"
         "-onlyCheckClient .......... Runs the updater over all repos defined in the 'manager_config.yaml' under section Manager and Mods without launching the defined launcher in the 'manager_conf.ymal'.\n"
         "-onlyLaunch ............... Only launches the defined file from the Launcher section, without checking fpr updates.\n"
@@ -443,7 +455,7 @@ class ManagerUpdater:
         print(
             f"[{time.strftime('%H:%M:%S')}] [info]    Stopped Updater and rerun new Version of {self.blockname} after install")
 
-        pass_args = " -onlyCheckAll" if onlyCheckAll else ""
+        pass_args = " -noLaunch" if noLaunch else ""
         pass_args += " -updateAllIgnoreManager" if updateAll else ""
         pass_args += " ".join(sys.argv[1:])
         script_queue.append(
@@ -644,14 +656,12 @@ def main():
             subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
         return
 
-    # launches all enabled servers
+        # launches all enabled servers
     if launchServers:
         launchservers()
 
     # check if allowed to launch the launcher
-    if not onlyCheckAll \
-            and not onlyCheckClient \
-            and not onlyCheckServers:
+    if not noLaunch:
         launcher()
 
 
@@ -907,7 +917,7 @@ def launchservers():
 
     pre_launch_origin()
     for script in scripts:
-        subprocess.Popen(script, cwd=str(Path.cwd()), shell=True).wait()
+        subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
 
 
 main()

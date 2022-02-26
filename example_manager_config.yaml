@@ -56,9 +56,9 @@ Mods:
 #                file: NorthstarLauncher.exe  # main file of the repo
 #
 #        config:  # Config of the Server, configuration for servers is split up into 3 different files
-#            ns_startup_args_dedi.txt: +mp_gamemode ps +setplaylistvaroverride "custom_air_acc_pilot 9000" +setplaylist private_match  # startup args for this server
-#            mod.json:  # config for Northstar.CustomServers
-#                ConVars:  # the section of the file
+#            ns_startup_args_dedi.txt: +mp_gamemode ps +setplaylistvaroverrides "custom_air_acc_pilot 9000" +setplaylist private_match  # startup args for this server
+#            mod.json:  # config for Northstar.CustomServers ConVars
+#                ConVars:
 #                    ns_private_match_last_map: mp_glitch  # key and value of a configuration
 #                    ns_private_match_last_mode: ps
 #                    ns_disallowed_weapons: mp_weapon_r97,mp_weapon_alternator_smg,mp_weapon_car,mp_weapon_hemlok_smg,mp_weapon_lmg,mp_weapon_lstar,mp_weapon_esaw,mp_weapon_rspn101,mp_weapon_vinson,mp_weapon_hemlok,mp_weapon_g2,mp_weapon_shotgun,mp_weapon_mastiff,mp_weapon_dmr,mp_weapon_doubletake,mp_weapon_epg,mp_weapon_smr,mp_weapon_pulse_lmg,mp_weapon_softball,mp_weapon_autopistol,mp_weapon_semipistol,mp_weapon_wingman,mp_weapon_shotgun_pistol,mp_weapon_rocket_launcher,mp_weapon_arc_launcher,mp_weapon_defender,mp_weapon_mgl,mp_weapon_wingman_n,mp_weapon_rspn101_og
