@@ -29,99 +29,13 @@ import logging
 # =============
 logger = logging.getLogger()
 streamHandler = logging.StreamHandler(sys.stdout)
-formatter = logging.Formatter(f'[%(asctime)s] [%(levelname)-7s] [{Path(sys.argv[0]).name.split(".")[0]}] %(message)s',
-                              datefmt='%I:%M:%S')
-
+formatter = logging.Formatter(
+    f'[%(asctime)s] [%(levelname)-7s] [{Path(sys.argv[0]).name.split(".")[0]}] %(message)s', datefmt='%I:%M:%S'
+)
 streamHandler.setFormatter(formatter)
 logger.addHandler(streamHandler)
 logger.setLevel(logging.DEBUG)
 
-# ================
-# Read Launch Args
-# ================
-logger.debug(msg="Parsing given Args")
-args = ""
-showhelp = False  # print help and quit
-try:
-    i = sys.argv.index("-help")
-    args += " " + sys.argv.pop(i)
-    showhelp = True
-except ValueError:
-    pass
-
-updateAll = False  # Force updates manager then relaunches manager with args -updateAllIgnoreManager
-try:
-    i = sys.argv.index("-updateAll")
-    args += " " + sys.argv.pop(i)
-    updateAll = True
-except ValueError:
-    pass
-
-updateAllIgnoreManager = False  # everything in yaml configurated will get force updated
-try:
-    i = sys.argv.index("-updateAllIgnoreManager")
-    args += " " + sys.argv.pop(i)
-    updateAllIgnoreManager = True
-except ValueError:
-    pass
-
-updateServers = False  # Force updates servers, ignoring enabled flags
-try:
-    i = sys.argv.index("-updateServers")
-    args += " " + sys.argv.pop(i)
-    updateServers = True
-except ValueError:
-    pass
-
-updateClient = False  # Force updates client and all the mods of the client, ignoring enabled flags
-try:
-    i = sys.argv.index("-updateClient")
-    args += " " + sys.argv.pop(i)
-    updateClient = True
-except ValueError:
-    pass
-
-onlyCheckServers = False  # only runs the check for updates on the servers
-try:
-    i = sys.argv.index("-onlyCheckServers")
-    args += " " + sys.argv.pop(i)
-    onlyCheckServers = True
-except ValueError:
-    pass
-
-onlyCheckClient = False  # only runs the check for updates on the client
-try:
-    i = sys.argv.index("-onlyCheckClient")
-    args += " " + sys.argv.pop(i)
-    onlyCheckClient = True
-except ValueError:
-    pass
-
-noUpdates = False  # disables the check for updates
-try:
-    i = sys.argv.index("-noUpdates")
-    args += " " + sys.argv.pop(i)
-    noUpdates = True
-except ValueError:
-    pass
-
-noLaunch = False  # does not launch the client
-try:
-    i = sys.argv.index("-noLaunch")
-    args += " " + sys.argv.pop(i)
-    noLaunch = True
-except ValueError:
-    pass
-
-launchServers = False  # launches all servers which are not disabled
-try:
-    i = sys.argv.index("-launchServers")
-    args += " " + sys.argv.pop(i)
-    launchServers = True
-except ValueError:
-    pass
-
-logger.info(f"Launched NorthstarManager with {'no args' if len(args) == 0 else 'arguments:' + args}")
 # =======================================================
 # Read 'manager_config.yaml' and setup configuration file
 # =======================================================
@@ -218,6 +132,7 @@ else:
 
 config = confuse.Configuration("NorthstarManager", __name__)
 config.set(conf_comments)
+logger.setLevel(logging.getLevelName(str(config["Global"]["log_level"].get(confuse.Optional(str, default="INFO"))).upper()))
 
 
 # ====================
@@ -269,6 +184,95 @@ def valid_min_conf() -> bool:
 # Check if loaded conf is valid/ minimal conf is given to run northstar
 if not valid_min_conf():
     exit(1)
+
+
+# ================
+# Read Launch Args
+# ================
+logger.debug(msg="Parsing given Args")
+args = ""
+showhelp = False  # print help and quit
+try:
+    i = sys.argv.index("-help")
+    args += " " + sys.argv.pop(i)
+    showhelp = True
+except ValueError:
+    pass
+
+updateAll = False  # Force updates manager then relaunches manager with args -updateAllIgnoreManager
+try:
+    i = sys.argv.index("-updateAll")
+    args += " " + sys.argv.pop(i)
+    updateAll = True
+except ValueError:
+    pass
+
+updateAllIgnoreManager = False  # everything in yaml configurated will get force updated
+try:
+    i = sys.argv.index("-updateAllIgnoreManager")
+    args += " " + sys.argv.pop(i)
+    updateAllIgnoreManager = True
+except ValueError:
+    pass
+
+updateServers = False  # Force updates servers, ignoring enabled flags
+try:
+    i = sys.argv.index("-updateServers")
+    args += " " + sys.argv.pop(i)
+    updateServers = True
+except ValueError:
+    pass
+
+updateClient = False  # Force updates client and all the mods of the client, ignoring enabled flags
+try:
+    i = sys.argv.index("-updateClient")
+    args += " " + sys.argv.pop(i)
+    updateClient = True
+except ValueError:
+    pass
+
+onlyCheckServers = False  # only runs the check for updates on the servers
+try:
+    i = sys.argv.index("-onlyCheckServers")
+    args += " " + sys.argv.pop(i)
+    onlyCheckServers = True
+except ValueError:
+    pass
+
+onlyCheckClient = False  # only runs the check for updates on the client
+try:
+    i = sys.argv.index("-onlyCheckClient")
+    args += " " + sys.argv.pop(i)
+    onlyCheckClient = True
+except ValueError:
+    pass
+
+noUpdates = False  # disables the check for updates
+try:
+    i = sys.argv.index("-noUpdates")
+    args += " " + sys.argv.pop(i)
+    noUpdates = True
+except ValueError:
+    pass
+
+noLaunch = False  # does not launch the client
+try:
+    i = sys.argv.index("-noLaunch")
+    args += " " + sys.argv.pop(i)
+    noLaunch = True
+except ValueError:
+    pass
+
+launchServers = False  # launches all servers which are not disabled
+try:
+    i = sys.argv.index("-launchServers")
+    args += " " + sys.argv.pop(i)
+    launchServers = True
+except ValueError:
+    pass
+
+logger.info(f"Launched NorthstarManager with {'no args' if len(args) == 0 else 'arguments:' + args}")
+
 
 # ===========================
 # Read token and setup githuh
@@ -460,12 +464,12 @@ class ManagerUpdater:
         pass_args += " -updateAllIgnoreManager" if updateAll else ""
         pass_args += " ".join(sys.argv[1:])
         script_queue.append(
-            f"echo [{time.strftime('%H:%M:%S')}] [info]    Running self-replacer            for {self.blockname} && "
+            f"echo [{time.strftime('%H:%M:%S')}] [INFO   ] Running self-replacer            for {self.blockname} && "
             f"timeout /t 5 && "
             f'del "{self.file}" >nul 2>&1 && '
             f'move "{newfile}" "{self.file}" >nul 2>&1 && '
-            f"echo [{time.strftime('%H:%M:%S')}] [info]    Installed successfully update    for {self.blockname} && "
-            f"echo [{time.strftime('%H:%M:%S')}] [info]    Launching latest install         of  {self.file.name}{pass_args} && "
+            f"echo [{time.strftime('%H:%M:%S')}] [INFO   ] Installed successfully update    for {self.blockname} && "
+            f"echo [{time.strftime('%H:%M:%S')}] [INFO   ] Launching latest install         of  {self.file.name}{pass_args} && "
             f'"{self.file.name}"{pass_args}'
         )
         raise HaltandRunScripts("restart manager")
@@ -576,7 +580,7 @@ class ModUpdater:
                     Path(Path(zip_.filename).stem) / fileinfo.filename
                     zip_.extract(fileinfo, self.install_dir)
         else:
-            raise FileNotInZip(f"mod.json not found in the selected release zip.")
+            raise FileNotInZip(f"mod.json not found in the selected release zip")
 
     def _file_extractor(self, zip_: zipfile.ZipFile):
         namelist = zip_.namelist()
@@ -590,7 +594,7 @@ class ModUpdater:
         else:
             for zip_info in zip_.infolist():
                 logger.debug(zip_info.filename)
-            raise FileNotInZip(f"{self._file} not found in the selected release zip.")
+            raise FileNotInZip(f"{self._file} not found in the selected release zip")
 
     def extract(self, zip_: zipfile.ZipFile):
         if self._file != "mod.json":
@@ -860,7 +864,7 @@ def launcher():
         logger.info(f"Launching {script}")
         subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
     except FileNotFoundError:
-        logger.warning(f"Could not run {script}")
+        logger.warning(f"Could not find given file {script}")
 
 
 # ==================
@@ -876,7 +880,7 @@ def pre_launch_origin():
             logger.info(f"Launched  Origin succesfull")
 
     except FileNotFoundError:
-        logger.warning(f"Could not run {script}")
+        logger.warning(f"Could not find given file {script}")
 
 
 # ============================
@@ -895,11 +899,11 @@ def launchservers():
                 continue
             else:
                 logger.info(f"Launching {server}")
-                server_dir = config["Servers"][server]["dir"]
-                scripts.append(f'start cmd.exe /k "cd /d {server_dir} && NorthstarLauncher.exe -dedicated"')
+                server_dir = config["Servers"][server]["dir"].get(confuse.Optional(str, f"Servers/{server}"))
+                scripts.append(f'start cmd.exe /c "cd /d {server_dir} && NorthstarLauncher.exe -dedicated"')
 
     if len(scripts) == 0:
-        logger.warning(f"No enabled Servers found.")
+        logger.warning(f"No enabled Servers found")
         return
 
     for script in scripts:
