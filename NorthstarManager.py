@@ -15,6 +15,7 @@ import time
 from datetime import datetime, timedelta
 
 from ruamel.yaml.constructor import DuplicateKeyError
+from ruamel.yaml.scanner import ScannerError
 from tqdm import tqdm
 import requests
 from github import Github
@@ -32,7 +33,7 @@ import logging
 logger = logging.getLogger()
 streamHandler = logging.StreamHandler(sys.stdout)
 formatter = logging.Formatter(
-    f'[%(asctime)s] [%(levelname)-7s] [{Path(sys.argv[0]).name.split(".")[0]}] %(message)s', datefmt='%I:%M:%S'
+    f'[%(asctime)s] [%(levelname)-7s] [{Path(sys.argv[0]).name.split(".")[0]}] %(message)s', datefmt='%H:%M:%S'
 )
 streamHandler.setFormatter(formatter)
 logger.addHandler(streamHandler)
@@ -217,6 +218,10 @@ else:
     try:
         with open("manager_config.yaml", "r") as f:
             conf_comments = yaml.load(f)
+    except ScannerError as e:
+        logger.error(f"[Config] 'manager_config.yaml' is invalid.{e.problem_mark} caused a mapping error")
+        exit(1)
+
     except DuplicateKeyError as e:
         logger.error(f"[Config] 'manager_config.yaml' is invalid. Duplicate Key{e.problem_mark} found")
         exit(1)
@@ -284,16 +289,16 @@ try:
     if len(git_token) == 0:
         g = Github()
         logger.info(
-            f"[GitToken] No configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+            f"[Config] [GitToken] No configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
     else:
         g = Github(git_token)
         logger.info(
-            f"[GitToken] Using configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+            f"[Config] [GitToken] Using configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
 except BadCredentialsException:
-    logger.warning(f"[GitToken] GitHub Token invalid or maybe expired. Check on https://github.com/settings/tokens")
+    logger.warning(f"[Config] [GitToken] GitHub Token invalid or maybe expired. Check on https://github.com/settings/tokens")
     g = Github()
     logger.info(
-        f"[GitToken] Using no GitHub Token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+        f"[Config] [GitToken] Using no GitHub Token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
 
 script_queue = []
 
@@ -328,6 +333,7 @@ def download(url, download_file):
     with requests.get(url, stream=True) as response:
         total = int(response.headers.get("content-length", 0))
         block_size = 1024
+
         with tqdm(
                 total=total, unit_scale=True, unit_divisor=block_size, unit="B"
         ) as progress:
@@ -340,7 +346,7 @@ def download(url, download_file):
 # Copy Titanfall2 files to a given dir
 # ====================================
 def install_tf2(installpath):
-    yamlpath = str(installpath).replace("\\", " ")
+    yamlpath = str(installpath).replace("\\", "] [")
     logger.info(f"[{yamlpath}] Copying TF2 files and creating a junction for vpk, r2 to {installpath}")
 
     originpath = Path.cwd()
@@ -412,11 +418,8 @@ class ManagerUpdater:
             self._file = yamlpath["file"].get(confuse.Optional(str, default="NorthstarController.exe"))
             self.file = (self.install_dir / self._file).resolve()
         except ConfigTypeError:
-            logger.error(f"[{' '.join(self.path)}] 'manager_config.yaml' is invalid at section: {'/'.join(path)}")
+            logger.error(f"[{'] ['.join(self.path)}] 'manager_config.yaml' is invalid at section: {'/'.join(path)}")
             quit(1)
-        if self.ignore_updates and not updateAll and not updateClient:
-            logger.info(f"[{' '.join(self.path)}] Search stopped for new releases  for {self.blockname}")
-            return
 
     @property
     def last_update(self):
@@ -445,7 +448,7 @@ class ManagerUpdater:
 
     def asset(self, release: GitRelease):
         logger.info(
-            f"[{' '.join(self.path)}] Updating to        new release   for {self.blockname} published Version {release.tag_name}")
+            f"[{'] ['.join(self.path)}] Updating to new release for {self.blockname} published Version {release.tag_name}")
 
         assets = release.get_assets()
         for asset in assets:
@@ -454,34 +457,43 @@ class ManagerUpdater:
         raise NoValidAsset("No valid asset was found in release")
 
     def run(self):
-        logger.info(f"[{' '.join(self.path)}] Searching for      new releases...")
+        logger.info(f"[{'] ['.join(self.path)}] Searching for new releases...")
+
+        if self.ignore_updates and not updateAll and not updateClient:
+            logger.info(f"[{'] ['.join(self.path)}] Search stopped for new releases  for {self.blockname}")
+            return
+
+        tag = ""
         try:
             release, asset = self.release()
+            tag = release.tag_name
+            url = asset.browser_download_url
         except NoValidRelease:
-            logger.info(f"[{' '.join(self.path)}] Latest Version already installed for {self.blockname}")
+            logger.info(f"[{'] ['.join(self.path)}] Latest Version already installed for {self.blockname}")
             return
         except NoValidAsset:
             logger.warning(
-                f"[{' '.join(self.path)}] Possibly faulty        release   for {self.blockname} published Version {release.tag_name} has no valit assets")
+                f"[{'] ['.join(self.path)}] Possibly faulty release for {self.blockname} published Version {tag} has no valit assets")
             return
         with tempfile.NamedTemporaryFile(delete=False) as download_file:
-            download(asset.browser_download_url, download_file)
+            logger.info(f"[{'] ['.join(self.path)}] Downloading: {url}")
+            download(url, download_file)
 
         newfile: Path = self.file.with_suffix(".new")
         shutil.move(download_file.name, newfile)
         self.last_update = release.published_at
-        logger.info(f"[{' '.join(self.path)}] Stopped Updater and rerun new Version of {self.blockname} after install")
+        logger.info(f"[{'] ['.join(self.path)}] Stopped Updater and rerun new Version of {self.blockname} after install")
 
         pass_args = " -noLaunch" if noLaunch else ""
         pass_args += " -updateAllIgnoreManager" if updateAll else ""
         pass_args += " ".join(sys.argv[1:])
         script_queue.append(
-            f"echo [{time.strftime('%H:%M:%S')}] [INFO   ] Running self-replacer            for {self.blockname} && "
+            f"echo [{time.strftime('%H:%M:%S')}] [INFO   ] Running self-replacer for {self.blockname} && "
             f"timeout /t 5 && "
             f'del "{self.file}" >nul 2>&1 && '
             f'move "{newfile}" "{self.file}" >nul 2>&1 && '
-            f"echo [{time.strftime('%H:%M:%S')}] [INFO   ] Installed successfully update    for {self.blockname} && "
-            f"echo [{time.strftime('%H:%M:%S')}] [INFO   ] Launching latest install         of  {self.file.name}{pass_args} && "
+            f"echo [{time.strftime('%H:%M:%S')}] [INFO   ] Installed successfully update for {self.blockname} && "
+            f"echo [{time.strftime('%H:%M:%S')}] [INFO   ] Launching latest install of {self.file.name}{pass_args} && "
             f'"{self.file.name}"{pass_args}'
         )
         raise HaltandRunScripts("restart manager")
@@ -490,31 +502,27 @@ class ManagerUpdater:
 # =============================
 # Handles the updating for mods
 # =============================
-class ModUpdater:
-    def __init__(self, path):
+class ModUpdater:  # %TODO Check if installed can only be done with install_dir for everymod pointing to the folder with mod.json
+    def __init__(self, yamlpath):
         try:
-            serverpath = ""
-            if path[0] == "Servers":
-                serverpath = Path(config[path[0]][path[1]]["dir"].get(confuse.Optional(str, default=".")))
-            yamlpath = config
-            for index in path:
-                yamlpath = yamlpath[index]
-
-            self.path = path
-            self.yamlpath = yamlpath
-            self.blockname = path[-1]
-            self.ignore_updates = self.yamlpath["ignore_updates"].get(confuse.Optional(bool, default=False))
-            self.ignore_prerelease = (self.yamlpath["ignore_prerelease"].get(confuse.Optional(bool, default=True)))
-            self.repository = self.yamlpath["repository"].get()
-            if len(str(serverpath)) != 0:
-                self.install_dir = Path(
-                    serverpath / self.yamlpath["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))
+            if yamlpath[0] == "Servers":
+                serverpath = Path(config[yamlpath[0]][yamlpath[1]]["dir"].get(confuse.Optional(str, default='/'.join(yamlpath[0:2]))))
             else:
-                self.install_dir = Path(
-                    self.yamlpath["install_dir"].get(confuse.Optional(str, default="./R2Northstar/mods")))
-            self._file = self.yamlpath["file"].get(confuse.Optional(str, default="mod.json"))
+                serverpath = Path(".")
+            data = config
+            for index in yamlpath:
+                data = data[index]
+
+            self.yamlpath = yamlpath
+            self.data = data
+            self.blockname = yamlpath[-1]
+            self.ignore_updates = self.data["ignore_updates"].get(confuse.Optional(bool, default=False))
+            self.ignore_prerelease = (self.data["ignore_prerelease"].get(confuse.Optional(bool, default=True)))
+            self.repository = self.data["repository"].get()
+            self.install_dir = Path(serverpath / self.data["install_dir"].get(confuse.Optional(str, default=f"./R2Northstar/mods/{self.blockname}")))
+            self._file = self.data["file"].get(confuse.Optional(str, default="mod.json"))
             self.file = (self.install_dir / self._file).resolve()
-            self.exclude_files = self.yamlpath["exclude_files"].get(confuse.Optional(list, default=[]))
+            self.exclude_files = self.data["exclude_files"].get(confuse.Optional(list, default=[]))
             try:
                 self.repo = g.get_repo(self.repository)
                 self.is_github = True
@@ -522,23 +530,19 @@ class ModUpdater:
                 self.repo = f"https://northstar.thunderstore.io/api/experimental/package/{self.repository}"
                 self.is_github = False
                 logger.debug(
-                    f"[{' '.join(self.path)}] Using Repo: https://northstar.thunderstore.io/api/experimental/package/{self.repository}")
+                    f"[{'] ['.join(self.yamlpath)}] Using Repo: https://northstar.thunderstore.io/api/experimental/package/{self.repository}")
         except ConfigTypeError:
-            logger.error(f"[{' '.join(self.path)}] 'manager_config.yaml' is invalid at section: {'/'.join(path)}")
+            logger.error(f"[{'] ['.join(self.yamlpath)}] 'manager_config.yaml' is invalid at section: {'/'.join(yamlpath)}")
             quit(1)
-
-        if self.ignore_updates and not updateAllIgnoreManager and not updateClient:
-            logger.info(f"[{' '.join(self.path)}] Search stopped for new releases  for {self.blockname}")
-            return
 
     @property
     def last_update(self):
         return datetime.fromisoformat(str(
-            self.yamlpath["last_update"].get(confuse.Optional(str, default=str(datetime.min.isoformat())))))
+            self.data["last_update"].get(confuse.Optional(str, default=str(datetime.min.isoformat())))))
 
     @last_update.setter
     def last_update(self, value: datetime):
-        self.yamlpath.get()["last_update"] = value.isoformat()
+        self.data.get()["last_update"] = value.isoformat()
 
     def release(self):
         releases = list(self.repo.get_releases())
@@ -546,9 +550,11 @@ class ModUpdater:
         for release in releases:
             if release.prerelease and self.ignore_prerelease:
                 continue
+
             if updateAll \
-                    or updateServers \
                     or updateAllIgnoreManager \
+                    or updateServers \
+                    or updateClient \
                     or release.published_at > self.last_update:
                 return release
             if self._file != "mod.json":
@@ -558,7 +564,7 @@ class ModUpdater:
 
     def asset(self, release: GitRelease) -> str:
         logger.info(
-            f"[{' '.join(self.path)}] Updating to        new release   for {self.blockname} published Version {release.tag_name}")
+            f"[{'] ['.join(self.yamlpath)}] Updating to new release for {self.blockname} published Version {release.tag_name}")
         assets = release.get_assets()
 
         if assets.totalCount == 0:  # if no application release exists try download source direct.
@@ -590,6 +596,7 @@ class ModUpdater:
                     fileinfo.filename = str(new_fp) + ("/" if fileinfo.filename.endswith("/") else "")
                     zip_.extract(fileinfo, self.install_dir)
         elif found:
+            print(f"found: {found}")
             for fileinfo in zip_.infolist():
                 if zip_.filename:
                     Path(Path(zip_.filename).stem) / fileinfo.filename
@@ -608,7 +615,7 @@ class ModUpdater:
                         zip_.extract(file_, self.install_dir)
         else:
             for zip_info in zip_.infolist():
-                logger.debug(f"[{' '.join(self.path)}] {zip_info.filename}")
+                logger.debug(f"[{'] ['.join(self.yamlpath)}] {zip_info.filename}")
             raise FileNotInZip(f"{self._file} not found in the selected release zip")
 
     def extract(self, zip_: zipfile.ZipFile):
@@ -618,39 +625,43 @@ class ModUpdater:
             self._mod_json_extractor(zip_)
 
     def run(self):
-        logger.info(f"[{' '.join(self.path)}] Searching for      new releases...")
+        logger.info(f"[{'] ['.join(self.yamlpath)}] Searching for new releases...")
+        if self.ignore_updates and not updateAllIgnoreManager and not updateClient:
+            logger.info(f"[{'] ['.join(self.yamlpath)}] Search stopped for new releases  for {self.blockname}")
+            return
 
+        tag = ""
         try:
             if self.is_github:
                 release = self.release()
                 url = self.asset(release)
+                t = release.published_at
+                tag = release.tag_name
             else:
                 t = datetime.fromisoformat(str(requests.get(self.repo).json()["latest"]["date_created"]).split(".")[0])
+                tag = str(requests.get(self.repo).json()["latest"]["version_number"])
+
                 if updateAllIgnoreManager \
                         or updateServers \
                         or updateClient \
-                        or t > self.last_update\
-                        or not self.file.exists():
+                        or t > self.last_update:
                     url = requests.get(self.repo).json()["latest"]["download_url"]
                 else:
                     raise NoValidRelease("Found No new releases")
             with tempfile.NamedTemporaryFile() as download_file:
+                logger.info(f"[{'] ['.join(self.yamlpath)}] Downloading: {url}")
                 download(url, download_file)
                 release_zip = zipfile.ZipFile(download_file)
                 self.extract(release_zip)
-                if self.is_github:
-                    self.last_update = release.published_at
-                else:
-                    self.last_update = datetime.fromisoformat(
-                        str(requests.get(self.repo).json()["latest"]["date_created"]).split(".")[0])
-                logger.info(f"[{' '.join(self.path)}] Installed successfully update    for {self.blockname}")
+                self.last_update = t
+                logger.info(f"[{'] ['.join(self.yamlpath)}] Installed successfully update for {self.blockname}")
 
         except NoValidRelease:
-            logger.info(f"[{' '.join(self.path)}] Latest Version already installed for {self.blockname}")
+            logger.info(f"[{'] ['.join(self.yamlpath)}] Latest Version already installed for {self.blockname}")
             return
         except NoValidAsset:
             logger.warning(
-                f"[{' '.join(self.path)}] Possibly faulty        release   for {self.blockname} published Version {release.tag_name} has no valit assets")
+                f"[{'] ['.join(self.yamlpath)}] Possibly faulty release for {self.blockname} published Version {tag} has no valit assets")
             return
 
 
@@ -668,7 +679,7 @@ def main():
         try:
             # restart updater when encountering a GitHub rate error
             while not updater():
-                logger.info(f"Waiting and restarting Updater in 60s...")
+                logger.info(f"Waiting and re-trying to update in 60s...")
                 time.sleep(60)
         except HaltandRunScripts:
             for script in script_queue:
@@ -706,7 +717,7 @@ def updater() -> bool:
                     ModUpdater(yamlpath).run()
 
                 section = "Launcher"
-                logger.info(f"[Launcher ns_startup_args.txt] Applying config...")
+                logger.info(f"[Launcher] [ns_startup_args.txt] Applying config...")
                 if config[section].get() is None:
                     raise SectionHasNoSubSections(yamlpath)
 
@@ -755,7 +766,7 @@ def updater() -> bool:
                 if not updateServers:
                     if not config[section]["enabled"].get(
                             confuse.Optional(bool, default=True)) and not updateAllIgnoreManager:
-                        logger.info(f"[{' '.join(yamlpath)}] Searvers are disabled")
+                        logger.info(f"[{'] ['.join(yamlpath)}] Searvers are disabled")
                         continue
                 for server in config[section]:
                     if server != "enabled":
@@ -763,14 +774,13 @@ def updater() -> bool:
                             raise SectionHasNoSubSections(yamlpath)
                         if not updateServers and not updateAllIgnoreManager:
                             if not config[section][server]["enabled"].get(confuse.Optional(bool, default=True)):
-                                logger.info(f"[{' '.join(yamlpath)}] Server: {server} is disabled")
+                                logger.info(f"[{'] ['.join(yamlpath)}] Server: {server} is disabled")
                                 continue
                         server_path = Path(
                             config[section][server]["dir"].get(confuse.Optional(str, default=f"./Servers/{server}")))
-
                         if not server_path.joinpath("Titanfall2.exe").exists():
                             logger.warning(
-                                f"[{' '.join(yamlpath)}] Titanfall2 files invalid or don't exists at the server location")
+                                f"[{'] ['.join(yamlpath)}] Titanfall2 files invalid or don't exists at the server location")
                             install_tf2(server_path)
 
                         for con in config[section][server]:
@@ -781,7 +791,7 @@ def updater() -> bool:
                             elif con == "config":
                                 for file in config[section][server][con]:
                                     yamlpath = [section, server, con, file]
-                                    logger.info(f"[{' '.join(yamlpath)}] Applying config...")
+                                    logger.info(f"[{'] ['.join(yamlpath)}] Applying config...")
                                     if file == "ns_startup_args_dedi.txt":
                                         x = Path(server_path / file)
 
@@ -861,7 +871,7 @@ def updater() -> bool:
                                                     json.dump(data, j, indent=4)
 
                                             else:
-                                                logger.error(f"[{' '.join(yamlpath)}] Unknown section {file_section}")
+                                                logger.error(f"[{'] ['.join(yamlpath)}] Unknown section {file_section}")
 
                                     elif file == "autoexec_ns_server.cfg":
                                         x = Path(
@@ -905,23 +915,23 @@ def updater() -> bool:
 
         except SectionHasNoSubSections:
             logger.warning(
-                f"[{' '.join(yamlpath)}] Skipping Section, config is invalid or is missing subsections")
+                f"[{'] ['.join(yamlpath)}] Skipping Section, config is invalid or is missing subsections")
             return True
 
         except RateLimitExceededException:
-            logger.warning(f"[{' '.join(yamlpath)}] GitHub rate exceeded")
-            logger.info(f"[{' '.join(yamlpath)}] Available requests left {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+            logger.warning(f"[{'] ['.join(yamlpath)}] GitHub rate exceeded")
+            logger.info(f"[{'] ['.join(yamlpath)}] Available requests left {g.rate_limiting[0]}/{g.rate_limiting[1]}")
             if "y" != input("Wait and try update again in 60sec? (y/n) "):
                 break
             return False
 
         except FileNotInZip:
-            logger.warning(f"[{' '.join(yamlpath)}] Zip file for doesn't contain expected files")
+            logger.warning(f"[{'] ['.join(yamlpath)}] Zip file for doesn't contain expected files")
             return True
         except FileNotFoundError as file_not_found:
-            logger.error(f"[{' '.join(yamlpath)}] File ({Path(file_not_found.filename).name}) does not exist")
+            logger.error(f"[{'] ['.join(yamlpath)}] File ({Path(file_not_found.filename).name}) does not exist")
             exit(1)
-    logger.info(f"Successfully checkt all mods")
+    logger.info(f"Successfully checkt all Mods and Servers")
     return True
 
 
@@ -935,7 +945,8 @@ def launcher():
         logger.info(f"[Launcher] Launching {script}")
         subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
     except FileNotFoundError:
-        logger.warning(f"[Launcher] Could not find given file {script}")
+        logger.error(f"[Launcher] Could not find given file {script}")
+        exit(1)
 
 
 # ==================
@@ -951,7 +962,8 @@ def pre_launch_origin():
             logger.info(f"[Launcher] Launched  Origin succesfull")
 
     except FileNotFoundError:
-        logger.warning(f"[Launcher] Could not find given file {script}")
+        logger.error(f"[Launcher] Could not find given file {script}")
+        exit(1)
 
 
 # ============================
@@ -988,5 +1000,5 @@ main()
 with open("manager_config.yaml", "w+") as f:
     yaml.dump(conf_comments, f)
 if not updateAll:
-    logger.info(f"Manager finished with exit code 0")
-exit(0)
+    logger.info(f"Manager finished successfully")
+    exit(0)
