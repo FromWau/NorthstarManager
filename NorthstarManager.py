@@ -596,7 +596,6 @@ class ModUpdater:  # %TODO Check if installed can only be done with install_dir 
                     fileinfo.filename = str(new_fp) + ("/" if fileinfo.filename.endswith("/") else "")
                     zip_.extract(fileinfo, self.install_dir)
         elif found:
-            print(f"found: {found}")
             for fileinfo in zip_.infolist():
                 if zip_.filename:
                     Path(Path(zip_.filename).stem) / fileinfo.filename
