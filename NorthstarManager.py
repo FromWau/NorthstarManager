@@ -929,7 +929,7 @@ def updater() -> bool:
 # launches the defined launcher
 # =============================
 def launcher():
-    script = f'"[Launcher] {config["Launcher"]["filename"].get()}" {config["Launcher"]["arguments"].get()} {" ".join(sys.argv[1:])}'
+    script = f'"{config["Launcher"]["filename"].get()}" {config["Launcher"]["arguments"].get()} {" ".join(sys.argv[1:])}'
     pre_launch_origin()
     try:
         logger.info(f"[Launcher] Launching {script}")
