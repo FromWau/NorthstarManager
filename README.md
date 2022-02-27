@@ -52,5 +52,5 @@ NorthstarManager.exe can be launched with following flags:
 | -launchServers | Launches all enabled servers from the 'manager_config.yaml'. |
 
 ## Compile it yourself
-Compiliation from py to exe is done via nuitka, but you could also use pyinstaller or something else.\\
+Compiliation from py to exe is done via nuitka, but you could also use pyinstaller or something else.<br>
 The compile.ps1 runs a pip install for the required python modules and starts the nuitka compilation. The scripts takes a 1950X about ~255seconds.    
