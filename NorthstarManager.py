@@ -484,12 +484,21 @@ class ManagerUpdater:
         self.last_update = release.published_at
         logger.info(f"[{'] ['.join(self.path)}] Stopped Updater and rerun new Version of {self.blockname} after install")
 
-        pass_args = " -noLaunch" if noLaunch else ""
-        pass_args += " -updateAllIgnoreManager" if updateAll else ""
+        pass_args = " -updateAllIgnoreManager" if updateAll else ""
+        pass_args += " -updateClient" if updateClient else ""
+        pass_args += " -updateServers" if updateServers else ""
+
+        pass_args += " -onlyCheckClient" if onlyCheckClient else ""
+        pass_args += " -onlyCheckServers" if onlyCheckServers else ""
+        pass_args += " -noUpdates" if noUpdates else ""
+
+        pass_args += " -noLaunch" if noLaunch else ""
+        pass_args += " -launchServers" if launchServers else ""
+
         pass_args += " ".join(sys.argv[1:])
         script_queue.append(
             f"echo [{time.strftime('%H:%M:%S')}] [INFO   ] Running self-replacer for {self.blockname} && "
-            f"timeout /t 5 && "
+            f"timeout /t 2 >nul 2>&1 && "
             f'del "{self.file}" >nul 2>&1 && '
             f'move "{newfile}" "{self.file}" >nul 2>&1 && '
             f"echo [{time.strftime('%H:%M:%S')}] [INFO   ] Installed successfully update for {self.blockname} && "
@@ -692,8 +701,6 @@ def main():
     # check if allowed to launch the launcher
     if not noLaunch:
         launcher()
-
-    return
 
 
 # =================================
@@ -998,6 +1005,3 @@ main()
 # ============
 with open("manager_config.yaml", "w+") as f:
     yaml.dump(conf_comments, f)
-if not updateAll:
-    logger.info(f"Manager finished successfully")
-    exit(0)
