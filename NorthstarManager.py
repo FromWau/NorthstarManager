@@ -1,35 +1,32 @@
 import json
-import confuse
-import ruamel.yaml
-
+import logging
 import re
-import psutil
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import zipfile
+from datetime import datetime, timedelta
 from pathlib import Path
 
-import time
-from datetime import datetime, timedelta
-
-from ruamel.yaml.constructor import DuplicateKeyError
-from ruamel.yaml.scanner import ScannerError
-from tqdm import tqdm
+import confuse
+import psutil
 import requests
+import ruamel.yaml
+from confuse import ConfigTypeError
 from github import Github
 from github.GitRelease import GitRelease
-
-from confuse import ConfigTypeError
 from github.GithubException import RateLimitExceededException, BadCredentialsException, UnknownObjectException
-
-import logging
-
+from ruamel.yaml.constructor import DuplicateKeyError
+from ruamel.yaml.parser import ParserError
+from ruamel.yaml.scanner import ScannerError
+from tqdm import tqdm
 
 # =============
 # Logging setup
 # =============
+
 logger = logging.getLogger()
 streamHandler = logging.StreamHandler(sys.stdout)
 formatter = logging.Formatter(
@@ -38,7 +35,6 @@ formatter = logging.Formatter(
 streamHandler.setFormatter(formatter)
 logger.addHandler(streamHandler)
 logger.setLevel(logging.DEBUG)
-
 
 # ================
 # Read Launch Args
@@ -125,7 +121,6 @@ except ValueError:
     pass
 
 logger.info(f"Launched NorthstarManager with {'no args' if len(args) == 0 else 'arguments:' + args}")
-
 
 # =======================================================
 # Read 'manager_config.yaml' and setup configuration file
@@ -218,6 +213,11 @@ else:
     try:
         with open("manager_config.yaml", "r") as f:
             conf_comments = yaml.load(f)
+
+    except ParserError as e:
+        logger.error(f"[Config] 'manager_config.yaml' is invalid.{e.problem_mark} caused a parsing error")
+        exit(1)
+
     except ScannerError as e:
         logger.error(f"[Config] 'manager_config.yaml' is invalid.{e.problem_mark} caused a mapping error")
         exit(1)
@@ -295,7 +295,8 @@ try:
         logger.info(
             f"[Config] [GitToken] Using configurated github_token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
 except BadCredentialsException:
-    logger.warning(f"[Config] [GitToken] GitHub Token invalid or maybe expired. Check on https://github.com/settings/tokens")
+    logger.warning(
+        f"[Config] [GitToken] GitHub Token invalid or maybe expired. Check on https://github.com/settings/tokens")
     g = Github()
     logger.info(
         f"[Config] [GitToken] Using no GitHub Token, running with a rate limit of {g.rate_limiting[0]}/{g.rate_limiting[1]}")
@@ -482,7 +483,8 @@ class ManagerUpdater:
         newfile: Path = self.file.with_suffix(".new")
         shutil.move(download_file.name, newfile)
         self.last_update = release.published_at
-        logger.info(f"[{'] ['.join(self.path)}] Stopped Updater and rerun new Version of {self.blockname} after install")
+        logger.info(
+            f"[{'] ['.join(self.path)}] Stopped Updater and rerun new Version of {self.blockname} after install")
 
         pass_args = " -updateAllIgnoreManager" if updateAll else ""
         pass_args += " -updateClient" if updateClient else ""
@@ -515,7 +517,8 @@ class ModUpdater:  # %TODO Check if installed can only be done with install_dir 
     def __init__(self, yamlpath):
         try:
             if yamlpath[0] == "Servers":
-                serverpath = Path(config[yamlpath[0]][yamlpath[1]]["dir"].get(confuse.Optional(str, default='/'.join(yamlpath[0:2]))))
+                serverpath = Path(
+                    config[yamlpath[0]][yamlpath[1]]["dir"].get(confuse.Optional(str, default='/'.join(yamlpath[0:2]))))
             else:
                 serverpath = Path(".")
             data = config
@@ -528,7 +531,8 @@ class ModUpdater:  # %TODO Check if installed can only be done with install_dir 
             self.ignore_updates = self.data["ignore_updates"].get(confuse.Optional(bool, default=False))
             self.ignore_prerelease = (self.data["ignore_prerelease"].get(confuse.Optional(bool, default=True)))
             self.repository = self.data["repository"].get()
-            self.install_dir = Path(serverpath / self.data["install_dir"].get(confuse.Optional(str, default=f"./R2Northstar/mods/{self.blockname}")))
+            self.install_dir = Path(serverpath / self.data["install_dir"].get(
+                confuse.Optional(str, default=f"./R2Northstar/mods/{self.blockname}")))
             self._file = self.data["file"].get(confuse.Optional(str, default="mod.json"))
             self.file = (self.install_dir / self._file).resolve()
             self.exclude_files = self.data["exclude_files"].get(confuse.Optional(list, default=[]))
@@ -541,7 +545,8 @@ class ModUpdater:  # %TODO Check if installed can only be done with install_dir 
                 logger.debug(
                     f"[{'] ['.join(self.yamlpath)}] Using Repo: https://northstar.thunderstore.io/api/experimental/package/{self.repository}")
         except ConfigTypeError:
-            logger.error(f"[{'] ['.join(self.yamlpath)}] 'manager_config.yaml' is invalid at section: {'/'.join(yamlpath)}")
+            logger.error(
+                f"[{'] ['.join(self.yamlpath)}] 'manager_config.yaml' is invalid at section: {'/'.join(yamlpath)}")
             quit(1)
 
     @property
@@ -766,7 +771,8 @@ def updater() -> bool:
                 with open("ns_startup_args.txt", "w") as replace:
                     replace.write(replace_str)
 
-            if (section == "Servers" and not onlyCheckClient and not updateClient) or (section == "Servers" and updateServers):
+            if (section == "Servers" and not onlyCheckClient and not updateClient) or (
+                    section == "Servers" and updateServers):
                 if config[section].get() is None:
                     raise SectionHasNoSubSections(yamlpath)
                 if not updateServers:
@@ -782,13 +788,31 @@ def updater() -> bool:
                             if not config[section][server]["enabled"].get(confuse.Optional(bool, default=True)):
                                 logger.info(f"[{'] ['.join(yamlpath)}] Server: {server} is disabled")
                                 continue
+
+                        yamlpath = [section, server]
                         server_path = Path(
                             config[section][server]["dir"].get(confuse.Optional(str, default=f"./Servers/{server}")))
                         if not server_path.joinpath("Titanfall2.exe").exists():
                             logger.warning(
                                 f"[{'] ['.join(yamlpath)}] Titanfall2 files invalid or don't exists at the server location")
                             install_tf2(server_path)
+                        if not server_path.joinpath("auto_restart.bat").exists():
+                            logger.warning(
+                                f"[{'] ['.join(yamlpath)}] Auto-Restart script not found at the server location")
+                            with open(server_path.joinpath("auto_restart.bat"), "w") as auto_restart:
+                                auto_restart.write('''@echo off 
+echo starting %1 %2
+goto restart
 
+:restart
+start /b /wait %1 %2
+echo %errorlevel%
+@if %errorlevel% == 0 (goto exit) else (echo started auto_restart server %1 && goto restart)
+
+:exit
+echo exiting %1
+''')
+                                logger.info("Created auto_restart.bat at the server location")
                         for con in config[section][server]:
                             if con == "Mods":
                                 for mod in config[section][server][con]:
@@ -945,7 +969,7 @@ def updater() -> bool:
 # launches the defined launcher
 # =============================
 def launcher():
-    script = f'"{config["Launcher"]["filename"].get()}" {config["Launcher"]["arguments"].get()} {" ".join(sys.argv[1:])}'
+    script = f'"{config["Launcher"]["filename"].get()}" {" ".join(sys.argv[1:])}'
     pre_launch_origin()
     try:
         logger.info(f"[Launcher] Launching {script}")
@@ -989,14 +1013,19 @@ def launchservers():
             else:
                 logger.info(f"[Launcher] Launching {server}")
                 server_dir = config["Servers"][server]["dir"].get(confuse.Optional(str, f"Servers/{server}"))
-                scripts.append(f'start cmd.exe /c "cd /d {server_dir} && NorthstarLauncher.exe -dedicated"')
+                scripts.append(
+                    f'start cmd.exe /k "cd /d {server_dir} && auto_restart.bat NorthstarLauncher.exe -dedicated"')
 
     if len(scripts) == 0:
         logger.warning(f"[Launcher] No enabled Servers found")
         return
 
-    for script in scripts:
-        subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
+    # Add a pause in between launching servers
+    scripts = f" && timeout /t 10 >nul 2>&1 && ".join(scripts)
+
+    print(scripts)
+    logger.info("[Launcher] Launching Servers in an intervall of 10seconds")
+    subprocess.Popen(scripts, cwd=str(Path.cwd()), shell=True)
 
 
 main()

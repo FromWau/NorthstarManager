@@ -42,7 +42,7 @@ Mods:
 # Servers - List of all Servers that should be managed
 # ====================================================
 Servers:
-#    enabled: false  # disables all listed servers for update checks, and they will not get launched
+    enabled: false  # disables all listed servers for update checks, and they will not get launched
 #
 #    How to install/ configure a server (you do not need to download or setup anything just configure what you want down below) (example for Kraber9k Server):
 #    -----------------------------------
@@ -55,7 +55,11 @@ Servers:
                 last_update: '0001-01-01T00:00:00'  # publishe date of the latest version of Northstar
                 install_dir: .  # install directory from the logger dir of the server
                 file: NorthstarLauncher.exe  # main file of the repo
-
+            
+            PlayerVote:  # just nice to have
+                repository: ScureX/PlayerVote
+                last_update: '0001-01-01T00:00:00'
+            
         config:  # Config of the Server, configuration for servers is split up into 3 different files
             ns_startup_args_dedi.txt: +setplaylist private_match -multiple +mp_gamemode ps +setplaylistvaroverrides "custom_air_accel_pilot 9000" -enablechathooks  # startup args for this server
             mod.json:  # config for Northstar.CustomServers
@@ -65,9 +69,147 @@ Servers:
                     ns_disallowed_weapons: mp_weapon_r97,mp_weapon_alternator_smg,mp_weapon_car,mp_weapon_hemlok_smg,mp_weapon_lmg,mp_weapon_lstar,mp_weapon_esaw,mp_weapon_rspn101,mp_weapon_vinson,mp_weapon_hemlok,mp_weapon_g2,mp_weapon_shotgun,mp_weapon_mastiff,mp_weapon_dmr,mp_weapon_doubletake,mp_weapon_epg,mp_weapon_smr,mp_weapon_pulse_lmg,mp_weapon_softball,mp_weapon_autopistol,mp_weapon_semipistol,mp_weapon_wingman,mp_weapon_shotgun_pistol,mp_weapon_rocket_launcher,mp_weapon_arc_launcher,mp_weapon_defender,mp_weapon_mgl,mp_weapon_wingman_n,mp_weapon_rspn101_og
                     ns_disallowed_weapon_primary_replacement: mp_weapon_sniper
             autoexec_ns_server.cfg:  # config for server
-                ns_server_name: Example Kraber9k Server  # key and value of a configuration
+                ns_server_name: "[EU] Example Kraber9k Server"  # key and value of a configuration
                 ns_server_desc: Example Server configurated via FromWau/NorthstarManager
                 ns_should_return_to_lobby: 1
                 ns_private_match_only_host_can_change_settings: 2
                 ns_player_auth_port: 8081  # IMPORTANT: EVERY RUNNING SERVER NEEDS AN UNIQUE TCP PORT AND THIS PORT NEEDS TO BE PORT-FORWARDED IN YOUR ROUTER SETTINGS
+
+# Some example Server configurations:                
+    FlipSide:
+        Mods:
+            Northstar:
+                repository: R2Northstar/Northstar
+                install_dir: .
+                file: NorthstarLauncher.exe
+                last_update: '0001-01-01T00:00:00'
+            FlipSide_Mod:
+                repository: The_Peepeepoopoo_man/FlipSide
+                last_update: '0001-01-01T00:00:00'
+            PlayerVote:
+                repository: ScureX/PlayerVote
+                last_update: '0001-01-01T00:00:00'
+        config:
+            ns_startup_args_dedi.txt: +setplaylist private_match -multiple +mp_gamemode ffa -enablechathooks +setplaylistvaroverrides "custom_air_accel_pilot 9000 boosts_enabled 1 Flipside 1 WallLocation 2"
+            mod.json:
+                ConVars:
+                    ns_private_match_last_map: mp_glitch
+                    ns_private_match_last_mode: ffa
+            autoexec_ns_server.cfg:
+                ns_server_name: Example FlipSide Server
+                ns_server_desc: Example Server configurated via FromWau/NorthstarManager
+                ns_should_return_to_lobby: 0
+                ns_private_match_only_host_can_change_settings: 2
+                ns_private_match_countdown_length: 0
+                ns_player_auth_port: 8082
+
+    HarvesterBattle:
+        Mods:
+            Northstar:
+                repository: R2Northstar/Northstar
+                last_update: '0001-01-01T00:00:00'
+                install_dir: .
+                file: NorthstarLauncher.exe
+
+            PlayerVote:
+                repository: ScureX/PlayerVote
+                last_update: '0001-01-01T00:00:00'
+            HarvesterBattle_Mod:
+                repository: The_Peepeepoopoo_man/HarvesterBattle
+                last_update: '0001-01-01T00:00:00'
+        config:
+            ns_startup_args_dedi.txt: +setplaylist private_match -multiple +mp_gamemode tdm +setplaylistvaroverrides "custom_air_accel_pilot 9000 HarvesterPush 1 Harvester_health 2500" -enablechathooks
+            mod.json:
+                ConVars:
+                    ns_private_match_last_map: mp_glitch
+                    ns_private_match_last_mode: tdm
+            autoexec_ns_server.cfg:
+                ns_server_name: Example HarvesterBattle Server
+                ns_server_desc: Example Server configurated via FromWau/NorthstarManager
+                ns_should_return_to_lobby: 1
+                ns_private_match_only_host_can_change_settings: 2
+                ns_private_match_countdown_length: 0
+                ns_player_auth_port: 8083
+
+    Comp_CTF:
+        Mods:
+            Northstar:
+                repository: R2Northstar/Northstar
+                last_update: '0001-01-01T00:00:00'
+                install_dir: .
+                file: NorthstarLauncher.exe
+
+            PlayerVote:
+                repository: ScureX/PlayerVote
+                last_update: '0001-01-01T00:00:00'
+        config:
+            ns_startup_args_dedi.txt: +setplaylist private_match -multiple +mp_gamemode
+                ctf_comp -enablechathooks
+            mod.json:
+                ConVars:
+                    ns_private_match_last_map: mp_glitch
+                    ns_private_match_last_mode: ctf_comp
+            autoexec_ns_server.cfg:
+                ns_server_name: Example Comp CTF Server
+                ns_server_desc: Example Server configurated via FromWau/NorthstarManager
+                ns_should_return_to_lobby: 1
+                ns_private_match_only_host_can_change_settings: 2
+                ns_private_match_countdown_length: 0
+                ns_player_auth_port: 8084
+
+    CrappyOddBall:
+        Mods:
+            Northstar:
+                repository: R2Northstar/Northstar
+                last_update: '0001-01-01T00:00:00'
+                install_dir: .
+                file: NorthstarLauncher.exe
+
+            PlayerVote:
+                repository: ScureX/PlayerVote
+                last_update: '0001-01-01T00:00:00'
+            CrappyOddBall_Mod:
+                repository: Palomar/CrappyOddBall
+                last_update: '0001-01-01T00:00:00'
+        config:
+            ns_startup_args_dedi.txt: +setplaylist private_match -multiple +mp_gamemode ffa -enablechathooks +setplaylistvaroverrides "custom_air_accel_pilot 9000 Oddball 1 Battery-Timeout 30 scorelimit 250"
+            mod.json:
+                ConVars:
+                    ns_private_match_last_map: mp_glitch
+                    ns_private_match_last_mode: ffa
+            autoexec_ns_server.cfg:
+                ns_server_name: Example CrappyOddBall Server
+                ns_server_desc: Example Server configurated via FromWau/NorthstarManager
+                ns_should_return_to_lobby: 1
+                ns_private_match_only_host_can_change_settings: 2
+                ns_private_match_countdown_length: 0
+                ns_player_auth_port: 8085
+
+    TeabagConfirmed:
+        Mods:
+            Northstar:
+                repository: R2Northstar/Northstar
+                last_update: '0001-01-01T00:00:00'
+                install_dir: .
+                file: NorthstarLauncher.exe
+
+            PlayerVote:
+                repository: ScureX/PlayerVote
+                last_update: '0001-01-01T00:00:00'
+            TeabagConfirmed_Mod:
+                repository: x3Karma/Teabag-Confirmed
+                last_update: '0001-01-01T00:00:00'
+        config:
+            ns_startup_args_dedi.txt: +setplaylist private_match -multiple +mp_gamemode tbag -enablechathooks +setplaylistvaroverrides "custom_air_accel_pilot 9000"
+            mod.json:
+                ConVars:
+                    ns_private_match_last_map: mp_glitch
+                    ns_private_match_last_mode: tbag
+            autoexec_ns_server.cfg:
+                ns_server_name: Example CrappyOddBall Server
+                ns_server_desc: Example Server configurated via FromWau/NorthstarManager
+                ns_should_return_to_lobby: 1
+                ns_private_match_only_host_can_change_settings: 2
+                ns_private_match_countdown_length: 0
+                ns_player_auth_port: 8086
                 
