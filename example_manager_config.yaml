@@ -75,7 +75,7 @@ Servers:
                 ns_private_match_only_host_can_change_settings: 2
                 ns_player_auth_port: 8081  # IMPORTANT: EVERY RUNNING SERVER NEEDS AN UNIQUE TCP PORT AND THIS PORT NEEDS TO BE PORT-FORWARDED IN YOUR ROUTER SETTINGS
 
-# Some example Server configurations:                
+# List of example server configurations:                
     FlipSide:
         Mods:
             Northstar:
