@@ -315,16 +315,11 @@ def printhelp():
                 "-updateAllIgnoreManager ... Force updates all repos defined in the 'manager_config.yaml', except the Manager section, to the latest release regardless of the latest release maybe being already installed, ignoring config flags: 'ignore_updates'.\n"
                 "-updateServers ............ Force updates all repos defined in the 'manager_config.yaml' under the Servers section.\n"
                 "-updateClient ............. Force updates all repos defined in the 'manager_config.yaml' under the Manager and Mods section.\n"
-                "-noLaunch ............. Runs the updater over all repos defined in the 'manager_config.yaml' without launching the defined launcher in the 'manager_conf.ymal'.\n"
-                "-onlyCheckServers ......... Runs the updater over all repos defined in the 'manager_config.yaml' under section Servers without launching the defined launcher in the 'manager_conf.ymal'.\n"
-                "-onlyCheckClient .......... Runs the updater over all repos defined in the 'manager_config.yaml' under section Manager and Mods without launching the defined launcher in the 'manager_conf.ymal'.\n"
-                "-launchClient ............... Only launches the defined file from the Launcher section, without checking fpr updates.\n"
-                "-launchServers ............ Launches all enabled servers from the 'manager_config.yaml'"
-                "\n"
-                "Northstar Client/ vanilla TF2 args should be put into the ns_startup_args.txt or ns_startup_args_dedi.txt for dedicated servers\n"
-                "All Northstar launch arguments can be found at the official wiki: https://r2northstar.gitbook.io/r2northstar-wiki/using-northstar/launch-arguments \n"
-                "All vanilla TF2 launch arguments can be found at the source wiki: https://developer.valvesoftware.com/wiki/Command_Line_Options#Command-line_parameters \n"
-                )
+                "-onlyCheckServers ......... Looks for updates only for repos defined in the 'manager_config.yaml' under section Servers without launching the defined launcher in the 'manager_conf.ymal'.\n"
+                "-onlyCheckClient .......... Looks for updates only for repos defined in the 'manager_config.yaml' under section Manager and Mods without launching the defined launcher in the 'manager_conf.ymal'.\n"
+                "-noUpdate ................. Only launches the defined file from the Launcher section, without checking fpr updates.\n"
+                "-noLaunch ................. Runs the updater over all repos defined in the 'manager_config.yaml' without launching the defined launcher in the 'manager_conf.ymal'.\n"
+                "-launchServers ............ Launches all enabled servers from the 'manager_config.yaml'")
 
 
 # ======================
@@ -818,7 +813,7 @@ echo Server exited with code: %errorlevel%
                                 for mod in config[section][server][con]:
                                     yamlpath = [section, server, con, mod]
                                     ModUpdater(yamlpath).run()
-                            elif con == "config":
+                            elif con == "Config":
                                 for file in config[section][server][con]:
                                     yamlpath = [section, server, con, file]
                                     logger.info(f"[{'] ['.join(yamlpath)}] Applying config...")
