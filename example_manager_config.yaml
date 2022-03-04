@@ -60,7 +60,7 @@ Servers:
                 repository: ScureX/PlayerVote
                 last_update: '0001-01-01T00:00:00'
             
-        config:  # Config of the Server, configuration for servers is split up into 3 different files
+        Config:  # Config of the Server, configuration for servers is split up into 3 different files
             ns_startup_args_dedi.txt: +setplaylist private_match -multiple +mp_gamemode ps +setplaylistvaroverrides "custom_air_accel_pilot 9000" -enablechathooks  # startup args for this server
             mod.json:  # config for Northstar.CustomServers
                 ConVars:  # the section of the file
@@ -74,6 +74,7 @@ Servers:
                 ns_should_return_to_lobby: 1
                 ns_private_match_only_host_can_change_settings: 2
                 ns_player_auth_port: 8081  # IMPORTANT: EVERY RUNNING SERVER NEEDS AN UNIQUE TCP PORT AND THIS PORT NEEDS TO BE PORT-FORWARDED IN YOUR ROUTER SETTINGS
+
 
 # List of example server configurations:
 # ======================================               
@@ -91,7 +92,7 @@ Servers:
 #             PlayerVote:
 #                 repository: ScureX/PlayerVote
 #                 last_update: '0001-01-01T00:00:00'
-#         config:
+#         Config:
 #             ns_startup_args_dedi.txt: +setplaylist private_match -multiple +mp_gamemode ffa -enablechathooks +setplaylistvaroverrides "custom_air_accel_pilot 9000 boosts_enabled 1 scorelimit 25 earn_meter_pilot_multiplier 0 Flipside 1 WallLocation 0 Smoke_wall 0"
 #             mod.json:
 #                 ConVars:
@@ -125,7 +126,7 @@ Servers:
 #             HoloShift_Mod:
 #                 repository: Legonzaur/HoloShift
 #                 last_update: '0001-01-01T00:00:00'
-#         config:
+#         Config:
 #             ns_startup_args_dedi.txt: +setplaylist private_match -multiple +mp_gamemode ffa -enablechathooks +setplaylistvaroverrides "custom_air_accel_pilot 9000 boosts_enabled 1 scorelimit 25 earn_meter_pilot_multiplier 0 Flipside 1 WallLocation 1 Smoke_wall 0 featured_mode_all_holopilot 1"
 #             mod.json:
 #                 ConVars:
@@ -154,7 +155,7 @@ Servers:
 #             PlayerVote:
 #                 repository: ScureX/PlayerVote
 #                 last_update: '0001-01-01T00:00:00'
-#         config:
+#         Config:
 #             ns_startup_args_dedi.txt: +setplaylist private_match -multiple +mp_gamemode ps +setplaylistvaroverrides "custom_air_accel_pilot 9000" -enablechathooks
 #             mod.json:
 #                 ConVars:
@@ -189,7 +190,7 @@ Servers:
 #             HarvesterBattle_Mod:
 #                 repository: The_Peepeepoopoo_man/HarvesterBattle
 #                 last_update: '0001-01-01T00:00:00'
-#         config:
+#         Config:
 #             ns_startup_args_dedi.txt: +setplaylist private_match -multiple +mp_gamemode
 #                 tdm +setplaylistvaroverrides "custom_air_accel_pilot 9000 HarvesterPush
 #                 1 Harvester_health 6900" -enablechathooks
@@ -218,7 +219,7 @@ Servers:
 #             PlayerVote:
 #                 repository: ScureX/PlayerVote
 #                 last_update: '0001-01-01T00:00:00'
-#         config:
+#         Config:
 #             ns_startup_args_dedi.txt: +setplaylist private_match -multiple +mp_gamemode
 #                 ctf_comp -enablechathooks
 #             mod.json:
@@ -250,7 +251,7 @@ Servers:
 #             CrappyOddBall_Mod:
 #                 repository: Palomar/CrappyOddBall
 #                 last_update: '0001-01-01T00:00:00'
-#         config:
+#         Config:
 #             ns_startup_args_dedi.txt: +setplaylist private_match -multiple +mp_gamemode
 #                 ffa -enablechathooks +setplaylistvaroverrides "custom_air_accel_pilot
 #                 9000 Oddball 1 Battery-Timeout 30 scorelimit 250"
@@ -281,7 +282,7 @@ Servers:
 #             TeabagConfirmed_Mod:
 #                 repository: x3Karma/Teabag-Confirmed
 #                 last_update: '0001-01-01T00:00:00'
-#         config:
+#         Config:
 #             ns_startup_args_dedi.txt: +setplaylist private_match -multiple +mp_gamemode
 #                 tbag -enablechathooks +setplaylistvaroverrides "custom_air_accel_pilot
 #                 9000"
