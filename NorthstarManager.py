@@ -680,7 +680,7 @@ def main():
     # prints help
     if showhelp:
         printhelp()
-        return
+        exit(0)
 
     if not noUpdates:
         # check for updates/ manages updates / installs updates
@@ -689,10 +689,14 @@ def main():
             while not updater():
                 logger.info(f"Waiting and re-trying to update in 60s...")
                 time.sleep(60)
+
+        except PermissionError as permission:
+            logger.error(f"Server ({Path(permission.filename).parent.name}) is still running")
+            exit(1)
         except HaltandRunScripts:
             for script in script_queue:
                 subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
-            return
+            exit(0)
 
     # launches all enabled servers
     if launchServers:
@@ -710,74 +714,74 @@ def updater() -> bool:
     for section in [s for s in config.keys() if s not in ["Global", "Launcher"]]:
         yamlpath = [section]
         try:
-            if section == "Manager" and not updateAllIgnoreManager and not onlyCheckServers and not updateServers:
-                if config[section].get() is None:
-                    raise SectionHasNoSubSections(yamlpath)
-                ManagerUpdater(yamlpath).run()
+            if section == "Manager":
+                if not updateAllIgnoreManager and not onlyCheckServers and not updateServers:
+                    if config[section].get() is None:
+                        raise SectionHasNoSubSections(yamlpath)
+                    ManagerUpdater(yamlpath).run()
 
-            if section == "Mods" and not onlyCheckServers and not updateServers:
-                if config[section].get() is None:
-                    raise SectionHasNoSubSections(yamlpath)
-                for mod in config[section]:
-                    yamlpath = [section, mod]
-                    ModUpdater(yamlpath).run()
+            elif section == "Mods":
+                if not onlyCheckServers and not updateServers:
+                    if config[section].get() is None:
+                        raise SectionHasNoSubSections(yamlpath)
+                    for mod in config[section]:
+                        yamlpath = [section, mod]
+                        ModUpdater(yamlpath).run()
 
-                section = "Launcher"
-                logger.info(f"[Launcher] [ns_startup_args.txt] Applying config...")
-                if config[section].get() is None:
-                    raise SectionHasNoSubSections(yamlpath)
+                    section = "Launcher"
+                    logger.info(f"[Launcher] [ns_startup_args.txt] Applying config...")
+                    if config[section].get() is None:
+                        raise SectionHasNoSubSections(yamlpath)
 
-                replace_str = ""
-                config_list = str(config[section]["arguments"].get()).strip() + " "
-                c_dict = {}
-                config_value = ""
-                for c in re.split('([-+])', config_list)[1:]:
-                    if c == "+" or c == "-":
-                        config_value = c
-                        continue
-                    config_value += c
-                    config_value.strip()
-                    split = config_value.split(" ")
-                    c_dict[split[0]] = split[1] if len(split[1:-1]) == 1 else " ".join(split[1:-1])
+                    replace_str = ""
+                    config_list = str(config[section]["arguments"].get()).strip() + " "
+                    c_dict = {}
+                    config_value = ""
+                    for c in re.split('([-+])', config_list)[1:]:
+                        if c == "+" or c == "-":
+                            config_value = c
+                            continue
+                        config_value += c
+                        config_value.strip()
+                        split = config_value.split(" ")
+                        c_dict[split[0]] = split[1] if len(split[1:-1]) == 1 else " ".join(split[1:-1])
 
-                with open("ns_startup_args.txt", 'r') as replace:
-                    while line := replace.readline():
-                        line = line.strip()
-                        config_value = ""
-                        for c in re.split('([-+])', line)[1:]:
-                            if c == "+" or c == "-":
-                                config_value = c
-                                continue
-                            config_value += c
-                            config_value.strip()
-                            split = config_value.split(" ")
-                            key = split[0]
-                            va = split[1] if len(split[1:-1]) == 1 else " ".join(split[1:-1])
+                    with open("ns_startup_args.txt", 'r') as replace:
+                        while line := replace.readline():
+                            line = line.strip()
+                            config_value = ""
+                            for c in re.split('([-+])', line)[1:]:
+                                if c == "+" or c == "-":
+                                    config_value = c
+                                    continue
+                                config_value += c
+                                config_value.strip()
+                                split = config_value.split(" ")
+                                key = split[0]
+                                va = split[1] if len(split[1:-1]) == 1 else " ".join(split[1:-1])
 
-                            if key in c_dict.keys():
-                                continue
-                            replace_str += f"{key} {va} "
+                                if key in c_dict.keys():
+                                    continue
+                                replace_str += f"{key} {va} "
 
-                for k, v in c_dict.items():
-                    replace_str += f"{k} {v} "
-                replace_str = replace_str.replace("  ", " ").strip()
+                    for k, v in c_dict.items():
+                        replace_str += f"{k} {v} "
+                    replace_str = replace_str.replace("  ", " ").strip()
 
-                # write new config to file
-                with open("ns_startup_args.txt", "w") as replace:
-                    replace.write(replace_str)
+                    # write new config to file
+                    with open("ns_startup_args.txt", "w") as replace:
+                        replace.write(replace_str)
 
-            if (section == "Servers" and not onlyCheckClient and not updateClient) or (
-                    section == "Servers" and updateServers):
-                if config[section].get() is None:
-                    raise SectionHasNoSubSections(yamlpath)
-                if not updateServers:
-                    if not config[section]["enabled"].get(
-                            confuse.Optional(bool, default=True)) and not updateAllIgnoreManager:
-                        logger.info(f"[{'] ['.join(yamlpath)}] Searvers are disabled")
-                        continue
-                for server in config[section]:
-                    if server != "enabled":
-
+            elif section == "Servers":
+                if (not onlyCheckClient and not updateClient) or updateServers:
+                    if config[section].get() is None:
+                        raise SectionHasNoSubSections(yamlpath)
+                    if not updateServers:
+                        if not config[section]["enabled"].get(
+                                confuse.Optional(bool, default=True)) and not updateAllIgnoreManager:
+                            logger.info(f"[{'] ['.join(yamlpath)}] Searvers are disabled")
+                            continue
+                    for server in [s for s in config[section] if s not in ["enabled"]]:
                         yamlpath = [section, server]
                         if config[section].get() is None:
                             raise SectionHasNoSubSections(yamlpath)
@@ -785,16 +789,15 @@ def updater() -> bool:
                             if not config[section][server]["enabled"].get(confuse.Optional(bool, default=True)):
                                 logger.info(f"[{'] ['.join(yamlpath)}] Server: {server} is disabled")
                                 continue
-
                         server_path = Path(
                             config[section][server]["dir"].get(confuse.Optional(str, default=f"./Servers/{server}")))
                         if not server_path.joinpath("Titanfall2.exe").exists():
                             logger.warning(
-                                f"[{'] ['.join(yamlpath)}] Titanfall2 files invalid or don't exists at the server location")
+                                f"[{'] ['.join(yamlpath)}] Titanfall2 files invalid or don't exists at server location")
                             install_tf2(server_path)
                         if not server_path.joinpath("auto_restart.bat").exists():
                             logger.warning(
-                                f"[{'] ['.join(yamlpath)}] Auto-Restart script not found at the server location")
+                                f"[{'] ['.join(yamlpath)}] Auto-Restart script not found at server location")
                             with open(server_path.joinpath("auto_restart.bat"), "w") as auto_restart:
                                 auto_restart.write('''@echo off 
 echo Starting %1 %2
@@ -807,8 +810,8 @@ echo Server exited with code: %errorlevel%
 
 :exit
 ''')
-                                logger.info(f"[{'] ['.join(yamlpath)}] Created auto_restart.bat at the server location")
-                        for con in config[section][server]:
+                                logger.info(f"[{'] ['.join(yamlpath)}] Successfully created auto_restart.bat at server location")
+                        for con in [s for s in config[section][server] if s not in ["enabled"]]:
                             if con == "Mods":
                                 for mod in config[section][server][con]:
                                     yamlpath = [section, server, con, mod]
@@ -937,6 +940,12 @@ echo Server exited with code: %errorlevel%
                                         # write new config to file
                                         with open(x, "w") as replace:
                                             replace.write(replace_str)
+
+                            else:
+                                logger.warning(f"[{'] ['.join(yamlpath)}] Unknown Field {con}")
+
+            else:
+                logger.warning(f"[{'] ['.join(yamlpath)}] Unknown Section {section}")
 
         except SectionHasNoSubSections:
             logger.warning(
