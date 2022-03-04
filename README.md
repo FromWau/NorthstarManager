@@ -3,9 +3,11 @@ NorthstarManager
 is a CLI based updater tool for [Northstar](https://github.com/R2Northstar/Northstar) and for custom Northstar mods published on Github. The Manager can be configured via the 'manager_config.yaml' or/and via Launch arguments. <br>
 
 # Features
-- Auto-Installing Northstar and Mods
+- Auto-Install of Northstar and Mods
 - Auto-Updater for Northstar, Mods and itself
-- Auto-Install, Auto-Setup and configuration of Dedicated Servers
+- Auto-Install, Auto-Setup and Auto-Configuration of Dedicated Servers
+
+The example_manager_config.yaml describes how to configure the manager/ mods/ servers. A List of example Dedicated Servers is also included which can just copy pasted to ypur config file.
 
 # How to install
 1. [Download the latest NorthstarManager.exe](https://github.com/FromWau/NorthstarManager/releases/latest/download/NorthstarManager.exe) or download another Version from the [release page](https://github.com/FromWau/NorthstarManager/releases).
