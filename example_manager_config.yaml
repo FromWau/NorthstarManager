@@ -27,8 +27,8 @@ Mods:
     Northstar:  # Northstar will be handled here
         repository: R2Northstar/Northstar  # repo of Northstar
         last_update: '0001-01-01T00:00:00'  # publishe date of the latest version of Northstar
+        file: NorthstarLauncher.exe  # main file of the repo        
         install_dir: .  # install directory is necessary for Northstar default is in the mods folder
-        file: NorthstarLauncher.exe  # main file of the repo
         exclude_files:  # files that should be excluded when updating the repo
         - ns_startup_args.txt
         - ns_startup_args_dedi.txt
