@@ -500,7 +500,7 @@ class ManagerUpdater:
         pass_args += " ".join(sys.argv[1:])
         script_queue.append(
             f"echo [{time.strftime('%H:%M:%S')}] [INFO   ] Running self-replacer for {self.blockname} && "
-            f"timeout /t 2 >nul 2>&1 && "
+            f"timeout /t 2 /nobreak && "
             f'del "{self.file}" >nul 2>&1 && '
             f'move "{newfile}" "{self.file}" >nul 2>&1 && '
             f"echo [{time.strftime('%H:%M:%S')}] [INFO   ] Installed successfully update for {self.blockname} && "
@@ -513,7 +513,7 @@ class ManagerUpdater:
 # =============================
 # Handles the updating for mods
 # =============================
-class ModUpdater:  # %TODO Check if installed can only be done with install_dir for everymod pointing to the folder with mod.json
+class ModUpdater:
     def __init__(self, yamlpath):
         try:
             if yamlpath[0] == "Servers":
@@ -532,7 +532,7 @@ class ModUpdater:  # %TODO Check if installed can only be done with install_dir 
             self.ignore_prerelease = (self.data["ignore_prerelease"].get(confuse.Optional(bool, default=True)))
             self.repository = self.data["repository"].get()
             self.install_dir = Path(serverpath / self.data["install_dir"].get(
-                confuse.Optional(str, default=f"./R2Northstar/mods/{self.blockname}")))
+                confuse.Optional(str, default=f"./R2Northstar/mods")))
             self._file = self.data["file"].get(confuse.Optional(str, default="mod.json"))
             self.file = (self.install_dir / self._file).resolve()
             self.exclude_files = self.data["exclude_files"].get(confuse.Optional(list, default=[]))
@@ -782,6 +782,8 @@ def updater() -> bool:
                         continue
                 for server in config[section]:
                     if server != "enabled":
+
+                        yamlpath = [section, server]
                         if config[section].get() is None:
                             raise SectionHasNoSubSections(yamlpath)
                         if not updateServers and not updateAllIgnoreManager:
@@ -789,7 +791,6 @@ def updater() -> bool:
                                 logger.info(f"[{'] ['.join(yamlpath)}] Server: {server} is disabled")
                                 continue
 
-                        yamlpath = [section, server]
                         server_path = Path(
                             config[section][server]["dir"].get(confuse.Optional(str, default=f"./Servers/{server}")))
                         if not server_path.joinpath("Titanfall2.exe").exists():
@@ -801,18 +802,17 @@ def updater() -> bool:
                                 f"[{'] ['.join(yamlpath)}] Auto-Restart script not found at the server location")
                             with open(server_path.joinpath("auto_restart.bat"), "w") as auto_restart:
                                 auto_restart.write('''@echo off 
-echo starting %1 %2
+echo Starting %1 %2
 goto restart
 
 :restart
 start /b /wait %1 %2
-echo %errorlevel%
-@if %errorlevel% == 0 (goto exit) else (echo started auto_restart server %1 && goto restart)
+echo Server exited with code: %errorlevel%
+@if %errorlevel% == 0 (goto exit) else (echo Re-Starting Server %1 && goto restart)
 
 :exit
-echo exiting %1
 ''')
-                                logger.info("Created auto_restart.bat at the server location")
+                                logger.info(f"[{'] ['.join(yamlpath)}] Created auto_restart.bat at the server location")
                         for con in config[section][server]:
                             if con == "Mods":
                                 for mod in config[section][server][con]:
@@ -1014,16 +1014,15 @@ def launchservers():
                 logger.info(f"[Launcher] Launching {server}")
                 server_dir = config["Servers"][server]["dir"].get(confuse.Optional(str, f"Servers/{server}"))
                 scripts.append(
-                    f'start cmd.exe /k "cd /d {server_dir} && auto_restart.bat NorthstarLauncher.exe -dedicated"')
+                    f'start cmd.exe /c "cd /d {server_dir} && auto_restart.bat NorthstarLauncher.exe -dedicated"')
 
     if len(scripts) == 0:
         logger.warning(f"[Launcher] No enabled Servers found")
         return
 
     # Add a pause in between launching servers
-    scripts = f" && timeout /t 10 >nul 2>&1 && ".join(scripts)
+    scripts = f" && timeout /t 10 /nobreak >nul 2>&1 && ".join(scripts)
 
-    print(scripts)
     logger.info("[Launcher] Launching Servers in an intervall of 10seconds")
     subprocess.Popen(scripts, cwd=str(Path.cwd()), shell=True)
 
