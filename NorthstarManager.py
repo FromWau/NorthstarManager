@@ -40,11 +40,11 @@ logger.setLevel(logging.DEBUG)
 # Read Launch Args
 # ================
 args = ""
-showhelp = False  # print help and quit
+showHelp = False  # print help and quit
 try:
     i = sys.argv.index("-help")
     args += " " + sys.argv.pop(i)
-    showhelp = True
+    showHelp = True
 except ValueError:
     pass
 
@@ -464,6 +464,7 @@ class ManagerUpdater:
             release, asset = self.release()
             tag = release.tag_name
             url = asset.browser_download_url
+
         except NoValidRelease:
             logger.info(f"[{'] ['.join(self.path)}] Latest Version already installed for {self.blockname}")
             return
@@ -482,7 +483,7 @@ class ManagerUpdater:
             f"[{'] ['.join(self.path)}] Stopped Updater and rerun new Version of {self.blockname} after install")
 
         pass_args = " -updateAllIgnoreManager" if updateAll else ""
-        pass_args += " -updateClient" if updateClient else ""
+        pass_args += " -updateClient -updateAllIgnoreManager" if updateClient else ""
         pass_args += " -updateServers" if updateServers else ""
 
         pass_args += " -onlyCheckClient" if onlyCheckClient else ""
@@ -678,7 +679,7 @@ class ModUpdater:
 # ====
 def main():
     # prints help
-    if showhelp:
+    if showHelp:
         printhelp()
         exit(0)
 
@@ -696,7 +697,7 @@ def main():
         except HaltandRunScripts:
             for script in script_queue:
                 subprocess.Popen(script, cwd=str(Path.cwd()), shell=True)
-            exit(0)
+            return
 
     # launches all enabled servers
     if launchServers:
