@@ -39,6 +39,14 @@ Mods:
 #    S2speedometer:  # Name of Mod (could be anything)
 #        repository: Mysterious_Reuploads/S2speedometer  # the repo from where to grab the latest release
 
+#    How to configure a new mod (example for CustomScopeFOV) :
+#    -------------------------
+#    CustomScopeFOV:
+#        repository: Avalar/CustomScopeFOV
+#        last_update: '0001-01-01T00:00:00'
+#        exclude_files:
+#        - mod\scripts\weapons\mp_pistols_fov.txt  # specify path to file which should be not excluded from updating
+
 # Servers - List of all Servers that should be managed
 # ====================================================
 Servers:
