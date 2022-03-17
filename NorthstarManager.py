@@ -528,7 +528,7 @@ class ModUpdater:
             self.ignore_prerelease = (self.data["ignore_prerelease"].get(confuse.Optional(bool, default=True)))
             self.repository = self.data["repository"].get()
             self.install_dir = Path(serverpath / self.data["install_dir"].get(
-                confuse.Optional(str, default=f"./R2Northstar/mods")))
+                confuse.Optional(str, default=f"./R2Northstar/mods/{str(self.repository).split('/')[0]}.{str(self.repository).split('/')[1]}")))
             self._file = self.data["file"].get(confuse.Optional(str, default="mod.json"))
             self.file = (self.install_dir / self._file).resolve()
             self.exclude_files = self.data["exclude_files"].get(confuse.Optional(list, default=[]))
@@ -565,6 +565,7 @@ class ModUpdater:
                     or updateAllIgnoreManager \
                     or updateServers \
                     or updateClient \
+                    or not self.file.exists() \
                     or release.published_at > self.last_update:
                 return release
             if self._file != "mod.json":
@@ -588,50 +589,81 @@ class ModUpdater:
                     return asset.browser_download_url
             raise NoValidAsset("No valid asset was found in release")
 
-    def _mod_json_extractor(self, zip_: zipfile.ZipFile):
-        parts = None
-        found = None
-        for fileinfo in zip_.infolist():
-            fp = Path(fileinfo.filename)
-            if fp.name == self._file:
-                parts = fp.parts[:-2]
-                found = fp
-                break
-        if parts:
-            for fileinfo in zip_.infolist():
-                fp = Path(fileinfo.filename)
-                strip = len(parts)
-                if fp.parts[:strip] == parts:
-                    new_fp = Path(*fp.parts[strip:])
-                    fileinfo.filename = str(new_fp) + ("/" if fileinfo.filename.endswith("/") else "")
-                    zip_.extract(fileinfo, self.install_dir)
-        elif found:
-            for fileinfo in zip_.infolist():
-                if zip_.filename:
-                    Path(Path(zip_.filename).stem) / fileinfo.filename
-                    zip_.extract(fileinfo, self.install_dir)
-        else:
-            raise FileNotInZip(f"mod.json not found in the selected release zip")
-
-    def _file_extractor(self, zip_: zipfile.ZipFile):
-        namelist = zip_.namelist()
-        if self._file in namelist or self._file.strip("/") + "/mod.json" in namelist:
-            for file_ in namelist:
-                if file_ not in self.exclude_files:
-                    zip_.extract(file_, self.install_dir)
-                else:
-                    if not Path(file_).exists():  # check for first time installation of excluded files
-                        zip_.extract(file_, self.install_dir)
-        else:
-            for zip_info in zip_.infolist():
-                logger.debug(f"[{'] ['.join(self.yamlpath)}] {zip_info.filename}")
-            raise FileNotInZip(f"{self._file} not found in the selected release zip")
-
     def extract(self, zip_: zipfile.ZipFile):
-        if self._file != "mod.json":
-            self._file_extractor(zip_)
+
+        # find parent folder of file (mod.json)
+        namelist = zip_.namelist()
+        cwd = None
+        for folder in [nlist for nlist in namelist if re.search(f"/{self._file}", nlist) or nlist == self._file]:
+            cwd = Path("." if folder == self._file else folder.removesuffix(f"{self._file}"))
+
+        # check if file exists in zip
+        if not cwd:
+            raise FileNotInZip()
+
+        # create backup file for excluded files
+        for file in self.exclude_files:
+            if self.install_dir.joinpath(file).exists():
+                try:
+                    shutil.copy(self.install_dir.joinpath(file), self.install_dir)  # if source and destination in same folder aka for Northstar installs
+                except shutil.SameFileError:
+                    pass
+                self.install_dir.joinpath(Path(file).name).rename(self.install_dir.joinpath(f"{Path(file).name}.bak"))
+                logger.debug(f"[{'] ['.join(self.yamlpath)}] Created {self.install_dir.joinpath(f'{Path(file).name}.bak')}")
+
+        if cwd == self.install_dir:
+            # extract zip into install_dir
+            for fileinfo in zip_.infolist():
+                zip_.extract(fileinfo.filename, self.install_dir)
+                logger.debug(f"[{'] ['.join(self.yamlpath)}] Extract Downloaded zip into {self.install_dir}")
+
+            # move backup file of excluded files if exists
+            for file in [file for file in self.exclude_files if Path(f"{Path(file).name}.bak").exists()]:
+                newfile = self.install_dir.joinpath(file)
+                shutil.move(self.install_dir.joinpath(f"{Path(file).name}.bak"), newfile)
+                logger.debug(f"[{'] ['.join(self.yamlpath)}] Replace {newfile} with backup file {self.install_dir.joinpath(f'{Path(file).name}.bak')}")
+
         else:
-            self._mod_json_extractor(zip_)
+            # extract zip with some magic
+            for fileinfo in [info for info in zip_.infolist() if info.filename.startswith(cwd.as_posix())]:
+                path = fileinfo.filename
+                if Path(path).name not in self.exclude_files:
+                    zip_.extract(path, self.install_dir)
+                    logger.debug(f"[{'] ['.join(self.yamlpath)}] Extract Downloaded zip into {self.install_dir}")
+                else:
+                    if not Path(path).exists():  # check for first time installation of excluded files
+                        zip_.extract(path, self.install_dir)
+                        logger.debug(f"[{'] ['.join(self.yamlpath)}] Extract Downloaded zip into {self.install_dir}")
+
+            # delete old files because shutil cant replace-copy
+            for replace in [r for r in self.install_dir.iterdir() if r.name != self.install_dir.joinpath(cwd.parts[0]).name]:
+                # filter for exclude files
+                if replace.name.endswith(".bak"):
+                    continue
+
+                if replace.is_dir():
+                    shutil.rmtree(replace)
+                    logger.debug(f"[{'] ['.join(self.yamlpath)}] Delete old dir {replace}")
+                elif replace.is_file():
+                    Path.unlink(replace)
+                    logger.debug(f"[{'] ['.join(self.yamlpath)}] Delete old file {replace}")
+
+            # copy
+            for files in self.install_dir.joinpath(cwd).iterdir():
+                shutil.move(files, self.install_dir)
+                logger.debug(f"[{'] ['.join(self.yamlpath)}] Replace {self.install_dir} with backup file {files}")
+
+            # delete empty dir
+            shutil.rmtree(self.install_dir.joinpath(cwd.parent))
+            logger.debug(f"[{'] ['.join(self.yamlpath)}] Delete old dir {self.install_dir.joinpath(cwd.parent)}")
+
+            # delete new and past old excluded file
+            for file in self.exclude_files:
+                newfile = self.install_dir.joinpath(file)
+                newfile.unlink()
+                logger.debug(f"[{'] ['.join(self.yamlpath)}] Delete old file {newfile}")
+                shutil.move(self.install_dir.joinpath(f"{Path(file).name}.bak"), newfile)
+                logger.debug(f"[{'] ['.join(self.yamlpath)}] Replace {newfile} with backup file {self.install_dir.joinpath(f'{Path(file).name}.bak')}")
 
     def run(self):
         logger.info(f"[{'] ['.join(self.yamlpath)}] Searching for new releases...")
@@ -653,6 +685,7 @@ class ModUpdater:
                 if updateAllIgnoreManager \
                         or updateServers \
                         or updateClient \
+                        or not self.file.exists() \
                         or t > self.last_update:
                     url = requests.get(self.repo).json()["latest"]["download_url"]
                 else:
@@ -811,7 +844,8 @@ echo Server exited with code: %errorlevel%
 
 :exit
 ''')
-                                logger.info(f"[{'] ['.join(yamlpath)}] Successfully created auto_restart.bat at server location")
+                                logger.info(
+                                    f"[{'] ['.join(yamlpath)}] Successfully created auto_restart.bat at server location")
                         for con in [s for s in config[section][server] if s not in ["enabled"]]:
                             if con == "Mods":
                                 for mod in config[section][server][con]:

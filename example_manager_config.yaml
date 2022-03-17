@@ -56,9 +56,13 @@ Servers:
                 install_dir: .  # install directory from the logger dir of the server
                 file: NorthstarLauncher.exe  # main file of the repo
             
-            PlayerVote:  # just nice to have
+            # Nice to have Server Mods:
+            PlayerVote:
                 repository: ScureX/PlayerVote
                 last_update: '0001-01-01T00:00:00'
+            AntiAFK:
+                repository: laundmo/AntiAFK
+                last_update: '0001-01-01T00:00:00'            
             
         Config:  # Config of the Server, configuration for servers is split up into 3 different files
             ns_startup_args_dedi.txt: +setplaylist private_match -multiple +mp_gamemode ps +setplaylistvaroverrides "custom_air_accel_pilot 9000" -enablechathooks  # startup args for this server
