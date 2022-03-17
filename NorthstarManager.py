@@ -436,21 +436,25 @@ class ManagerUpdater:
                     not self.file.exists() or \
                     release.published_at > self.last_update or \
                     datetime.fromtimestamp(self.file.stat().st_mtime) < release.published_at - timedelta(minutes=10):
+
                 try:  # if asset not available contine search
-                    return release, self.asset(release)
-                except NoValidAsset:
+                    asset = self.asset(release)
+                    logger.info(
+                        f"[{'] ['.join(self.path)}] Updating to new release for {self.blockname} published Version {release.tag_name}")
+                    return release, asset
+                except NoValidAsset as invalid:
+                    logger.debug(f"[{'] ['.join(self.path)}] {invalid}")
                     continue
+
         raise NoValidRelease("No new release found")
 
     def asset(self, release: GitRelease):
-        logger.info(
-            f"[{'] ['.join(self.path)}] Updating to new release for {self.blockname} published Version {release.tag_name}")
-
         assets = release.get_assets()
         for asset in assets:
-            if asset.content_type in "application/octet-stream":
+            if asset.content_type in ["application/octet-stream", "application/x-msdownload"]:
+                logger.debug(f"[{'] ['.join(self.path)}] Found valid asset {asset}")
                 return asset
-        raise NoValidAsset("No valid asset was found in release")
+        raise NoValidAsset(f"No valid asset was found in {release.tag_name}")
 
     def run(self):
         logger.info(f"[{'] ['.join(self.path)}] Searching for new releases...")
@@ -658,7 +662,7 @@ class ModUpdater:
             logger.debug(f"[{'] ['.join(self.yamlpath)}] Delete old dir {self.install_dir.joinpath(cwd.parent)}")
 
             # delete new and past old excluded file
-            for file in self.exclude_files:
+            for file in [file for file in self.exclude_files if Path(f"{Path(file).name}.bak").exists()]:
                 newfile = self.install_dir.joinpath(file)
                 newfile.unlink()
                 logger.debug(f"[{'] ['.join(self.yamlpath)}] Delete old file {newfile}")
