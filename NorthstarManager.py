@@ -615,7 +615,7 @@ class ModUpdater:
                 self.install_dir.joinpath(Path(file).name).rename(self.install_dir.joinpath(f"{Path(file).name}.bak"))
                 logger.debug(f"[{'] ['.join(self.yamlpath)}] Created {self.install_dir.joinpath(f'{Path(file).name}.bak')}")
 
-        if cwd == self.install_dir:
+        if cwd == self.install_dir or self.install_dir.parts[0] == "Servers":
             # extract zip into install_dir
             for fileinfo in zip_.infolist():
                 zip_.extract(fileinfo.filename, self.install_dir)
@@ -662,7 +662,7 @@ class ModUpdater:
             logger.debug(f"[{'] ['.join(self.yamlpath)}] Delete old dir {self.install_dir.joinpath(cwd.parent)}")
 
             # delete new and past old excluded file
-            for file in [file for file in self.exclude_files if Path(f"{Path(file).name}.bak").exists()]:
+            for file in [file for file in self.exclude_files if self.install_dir.joinpath(f"{Path(file).name}.bak").exists()]:
                 newfile = self.install_dir.joinpath(file)
                 newfile.unlink()
                 logger.debug(f"[{'] ['.join(self.yamlpath)}] Delete old file {newfile}")
