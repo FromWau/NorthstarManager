@@ -26,7 +26,6 @@ from tqdm import tqdm
 # =============
 # Logging setup
 # =============
-
 logger = logging.getLogger()
 streamHandler = logging.StreamHandler(sys.stdout)
 formatter = logging.Formatter(
@@ -40,17 +39,55 @@ logger.setLevel(logging.DEBUG)
 # Read Launch Args
 # ================
 args = ""
+sysargs = [sysargs.lower() for sysargs in sys.argv]
+
 showHelp = False  # print help and quit
 try:
-    i = sys.argv.index("-help")
+    i = sysargs.index("-help")
     args += " " + sys.argv.pop(i)
     showHelp = True
 except ValueError:
     pass
 
+loglevel = []  # forces the logging level
+try:
+    i = sysargs.index("-debug")
+    args += " " + sys.argv.pop(i)
+    loglevel.append("DEBUG")
+except ValueError:
+    pass
+
+try:
+    i = sysargs.index("-info")
+    args += " " + sys.argv.pop(i)
+    loglevel.append("INFO")
+except ValueError:
+    pass
+
+try:
+    i = sysargs.index("-warning")
+    args += " " + sys.argv.pop(i)
+    loglevel.append("WARNING")
+except ValueError:
+    pass
+
+try:
+    i = sysargs.index("-error")
+    args += " " + sys.argv.pop(i)
+    loglevel.append("ERROR")
+except ValueError:
+    pass
+
+try:
+    i = sysargs.index("-critical")
+    args += " " + sys.argv.pop(i)
+    loglevel.append("CRITICAL")
+except ValueError:
+    pass
+
 updateAll = False  # Force updates manager then relaunches manager with args -updateAllIgnoreManager
 try:
-    i = sys.argv.index("-updateAll")
+    i = sysargs.index("-updateall")
     args += " " + sys.argv.pop(i)
     updateAll = True
 except ValueError:
@@ -58,7 +95,7 @@ except ValueError:
 
 updateAllIgnoreManager = False  # everything in yaml configurated will get force updated
 try:
-    i = sys.argv.index("-updateAllIgnoreManager")
+    i = sysargs.index("-updateallignoremanager")
     args += " " + sys.argv.pop(i)
     updateAllIgnoreManager = True
 except ValueError:
@@ -66,7 +103,7 @@ except ValueError:
 
 updateServers = False  # Force updates servers, ignoring enabled flags
 try:
-    i = sys.argv.index("-updateServers")
+    i = sysargs.index("-updateservers")
     args += " " + sys.argv.pop(i)
     updateServers = True
 except ValueError:
@@ -74,7 +111,7 @@ except ValueError:
 
 updateClient = False  # Force updates client and all the mods of the client, ignoring enabled flags
 try:
-    i = sys.argv.index("-updateClient")
+    i = sysargs.index("-updateclient")
     args += " " + sys.argv.pop(i)
     updateClient = True
 except ValueError:
@@ -82,7 +119,7 @@ except ValueError:
 
 onlyCheckServers = False  # only runs the check for updates on the servers
 try:
-    i = sys.argv.index("-onlyCheckServers")
+    i = sysargs.index("-onlycheckservers")
     args += " " + sys.argv.pop(i)
     onlyCheckServers = True
 except ValueError:
@@ -90,7 +127,7 @@ except ValueError:
 
 onlyCheckClient = False  # only runs the check for updates on the client
 try:
-    i = sys.argv.index("-onlyCheckClient")
+    i = sysargs.index("-onlycheckclient")
     args += " " + sys.argv.pop(i)
     onlyCheckClient = True
 except ValueError:
@@ -98,7 +135,7 @@ except ValueError:
 
 noUpdates = False  # disables the check for updates
 try:
-    i = sys.argv.index("-noUpdates")
+    i = sysargs.index("-noupdates")
     args += " " + sys.argv.pop(i)
     noUpdates = True
 except ValueError:
@@ -106,7 +143,7 @@ except ValueError:
 
 noLaunch = False  # does not launch the client
 try:
-    i = sys.argv.index("-noLaunch")
+    i = sysargs.index("-nolaunch")
     args += " " + sys.argv.pop(i)
     noLaunch = True
 except ValueError:
@@ -114,13 +151,17 @@ except ValueError:
 
 launchServers = False  # launches all servers which are not disabled
 try:
-    i = sys.argv.index("-launchServers")
+    i = sysargs.index("-launchservers")
     args += " " + sys.argv.pop(i)
     launchServers = True
 except ValueError:
     pass
 
-logger.info(f"Launched NorthstarManager with {'no args' if len(args) == 0 else 'arguments:' + args}")
+# set log level from args if exists
+if len(loglevel) > 0:
+    logger.setLevel(logging.getLevelName(str(loglevel[0]).upper()))
+
+logger.info(f"Launched NorthstarManager with {'no args' if len(sysargs) == 0 else f'arguments: {args}'}")
 
 # =======================================================
 # Read 'manager_config.yaml' and setup configuration file
@@ -244,15 +285,18 @@ else:
 
 config = confuse.Configuration(Path(sys.argv[0]).name.split(".")[0], __name__)
 config.set(conf_comments)
-logger.setLevel(
-    logging.getLevelName(str(config["Global"]["log_level"].get(confuse.Optional(str, default="INFO"))).upper()))
+
+# set log level from config if args dont have a specified log level
+if len(loglevel) == 0:
+    logger.setLevel(
+        logging.getLevelName(str(config["Global"]["log_level"].get(confuse.Optional(str, default="INFO"))).upper()))
 
 
 # ====================
 # validates the config
 # ====================
 def valid_min_conf() -> bool:
-    logger.info("[Config] Running basic validation for 'manager_config.yaml'...")
+    logger.debug("[Config] Running basic validation for 'manager_config.yaml'...")
     valid_test = {
         'Launcher': {
             'filename': 'NorthstarLauncher.exe',
@@ -275,8 +319,7 @@ def valid_min_conf() -> bool:
     try:
         for valid_keys in valid_test.keys():
             for valid_sections in valid_test[valid_keys]:
-                if (f"{valid_sections}", f"{valid_test[valid_keys][valid_sections]}") in config.get()[
-                    valid_keys].items():
+                if (f"{valid_sections}", f"{valid_test[valid_keys][valid_sections]}") in config.get()[valid_keys].items():
                     valid_counter += 1
                     continue
                 for valid_subsection in valid_test[valid_keys][valid_sections]:
@@ -286,7 +329,7 @@ def valid_min_conf() -> bool:
         if valid_counter < 6:
             logger.error("[Config] 'manager_config.yaml' is empty or invalid")
             return False
-        logger.info("[Config] Validation successful for 'manager_config.yaml'")
+        logger.debug("[Config] 'manager_config.yaml' basic validation successful")
         return True
 
     except (TypeError, AttributeError, KeyError):
@@ -588,11 +631,12 @@ class ModUpdater:
                     or updateServers \
                     or updateClient \
                     or not self.file.exists() \
+                    or self._file == "NorthstarLauncher.exe" and (
+                        not self.install_dir.joinpath("R2Northstar/mods/Northstar.Client").exists() or
+                        not self.install_dir.joinpath("R2Northstar/mods/Northstar.Custom").exists() or
+                        not self.install_dir.joinpath("R2Northstar/mods/Northstar.CustomServers").exists()) \
                     or release.published_at > self.last_update:
                 return release
-            if self._file != "mod.json":
-                if not self.file.exists() or self._file != "NorthstarLauncher.exe":
-                    return release
         raise NoValidRelease("Found No new releases")
 
     def asset(self, release: GitRelease) -> str:
@@ -608,10 +652,7 @@ class ModUpdater:
             raise NoValidAsset("No valid asset was found in release")
 
     def extract(self, zip_: zipfile.ZipFile):
-
-        # Servers work but have an ugly file structure
-
-        # find parent folder of file (mod.json)
+        # find parent folder of file (e.g. mod.json or NorthstarLauncher.exe)
         namelist = zip_.namelist()
         cwd = None
         for folder in [nlist for nlist in namelist if re.search(f"/{self._file}", nlist) or nlist == self._file]:
@@ -624,14 +665,14 @@ class ModUpdater:
         # create backup file for excluded files
         for file in [file for file in self.exclude_files if self.install_dir.joinpath(file).exists()]:
             try:
-                shutil.copy(self.install_dir.joinpath(file),
-                            self.install_dir)  # if source and destination in same folder aka for Northstar installs
+                # if source and destination in same folder aka for Northstar installs
+                shutil.copy(self.install_dir.joinpath(file), self.install_dir)
             except shutil.SameFileError:
                 pass
             self.install_dir.joinpath(Path(file).name).rename(self.install_dir.joinpath(f"{Path(file).name}.bak"))
             logger.debug(f"[{'] ['.join(self.yamlpath)}] Created {self.install_dir.joinpath(f'{Path(file).name}.bak')}")
 
-        if cwd == self.install_dir or self.install_dir.parts[0] == "Servers":
+        if self.install_dir.joinpath(cwd) == self.install_dir:
             # extract zip into install_dir
             for fileinfo in zip_.infolist():
                 zip_.extract(fileinfo.filename, self.install_dir)
@@ -648,6 +689,7 @@ class ModUpdater:
             # extract zip with some magic
             for fileinfo in [info for info in zip_.infolist() if info.filename.startswith(cwd.as_posix())]:
                 path = fileinfo.filename
+
                 if Path(path).name not in self.exclude_files:
                     zip_.extract(path, self.install_dir)
                     logger.debug(f"[{'] ['.join(self.yamlpath)}] Extract Downloaded zip into {self.install_dir}")
@@ -787,7 +829,8 @@ def updater() -> bool:
                         ModUpdater(yamlpath).run()
 
                     section = "Launcher"
-                    logger.info(f"[Launcher] [ns_startup_args.txt] Applying config...")
+                    logger.info(f"[Config] Applying configurations")
+                    logger.debug(f"[Config] [ns_startup_args.txt] Applying config...")
                     if config[section].get() is None:
                         raise SectionHasNoSubSections(yamlpath)
 
@@ -876,9 +919,10 @@ echo Server exited with code: %errorlevel%
                                     yamlpath = [section, server, con, mod]
                                     ModUpdater(yamlpath).run()
                             elif con == "Config":
+                                logger.info(f"[{'] ['.join(yamlpath)}] Applying configurations")
                                 for file in config[section][server][con]:
                                     yamlpath = [section, server, con, file]
-                                    logger.info(f"[{'] ['.join(yamlpath)}] Applying config...")
+                                    logger.debug(f"[{'] ['.join(yamlpath)}] Applying config...")
                                     if file == "ns_startup_args_dedi.txt":
                                         x = Path(server_path / file)
 
@@ -1074,7 +1118,6 @@ def launchservers():
                 logger.info(f"[Launcher] Server: {server} is disabled")
                 continue
             else:
-                logger.info(f"[Launcher] Launching {server}")
                 server_dir = config["Servers"][server]["dir"].get(confuse.Optional(str, f"Servers/{server}"))
                 scripts.append(
                     f'start cmd.exe /c "cd /d {server_dir} && auto_restart.bat NorthstarLauncher.exe -dedicated"')
@@ -1084,9 +1127,8 @@ def launchservers():
         return
 
     # Add a pause in between launching servers
+    logger.info("[Launcher] Launching servers in an intervall of 10 seconds")
     scripts = f" && timeout /t 10 /nobreak >nul 2>&1 && ".join(scripts)
-
-    logger.info("[Launcher] Launching Servers in an intervall of 10seconds")
     subprocess.Popen(scripts, cwd=str(Path.cwd()), shell=True)
 
 
@@ -1095,4 +1137,5 @@ main()
 # write config
 # ============
 with open("manager_config.yaml", "w+") as f:
+    logger.debug(f"Writing config to {f.name}")
     yaml.dump(conf_comments, f)
