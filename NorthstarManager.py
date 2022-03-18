@@ -139,7 +139,7 @@ if not Path("manager_config.yaml").exists():
 # =======================================================
 Global:
     github_token:  # Token for GitHub, can be acquired from: https://github.com/settings/tokens
-#    log_level: INFO  # Sets the log level. Can be set to CRITICAL, ERROR, WARNING, INFO, DEBUG. Default is INFO
+#    log_level: DEBUG  # Sets the log level. Can be set to CRITICAL, ERROR, WARNING, INFO, DEBUG. Default is INFO
 
 # Launcher - Defines the to be launched Application with optional args
 # ====================================================================
@@ -164,8 +164,8 @@ Mods:
     Northstar:  # Northstar will be handled here
         repository: R2Northstar/Northstar  # repo of Northstar
         last_update: '0001-01-01T00:00:00'  # publishe date of the latest version of Northstar
+        file: NorthstarLauncher.exe  # main file of the repo        
         install_dir: .  # install directory is necessary for Northstar default is in the mods folder
-        file: NorthstarLauncher.exe  # main file of the repo
         exclude_files:  # files that should be excluded when updating the repo
         - ns_startup_args.txt
         - ns_startup_args_dedi.txt
@@ -176,37 +176,53 @@ Mods:
 #    S2speedometer:  # Name of Mod (could be anything)
 #        repository: Mysterious_Reuploads/S2speedometer  # the repo from where to grab the latest release
 
+#    How to configure a new mod (example for CustomScopeFOV) :
+#    -------------------------
+#    CustomScopeFOV:
+#        repository: Avalar/CustomScopeFOV
+#        last_update: '0001-01-01T00:00:00'
+#        exclude_files:
+#        - mod\scripts\weapons\mp_pistols_fov.txt  # specify path to file which should be not excluded from updating
+
 # Servers - List of all Servers that should be managed
 # ====================================================
-#Servers:
-#    enabled: false  # disables all listed servers for update checks, and they will not get launched
+Servers:
+    enabled: false  # disables all listed servers for update checks, and they will not get launched
 #
 #    How to install/ configure a server (you do not need to download or setup anything just configure what you want down below) (example for Kraber9k Server):
 #    -----------------------------------
-#    Kraber 9k:  # Name of the Server
+    Kraber 9k:  # Name of the Server
 #        dir: servers/Kraber 9k  # directory where the server is located. Default is the yaml path (Servers/Servername).
 #        enabled: false  # disables this server for update checks, and the server will not get launched
-#        Mods:  # Mods for the server
-#            Northstar:  # Northstar, is needed for the server
-#                repository: R2Northstar/Northstar  # repo of Northstar
-#                last_update: '0001-01-01T00:00:00'  # publishe date of the latest version of Northstar
-#                install_dir: .  # install directory from the logger dir of the server
-#                file: NorthstarLauncher.exe  # main file of the repo
-#
-#        config:  # Config of the Server, configuration for servers is split up into 3 different files
-#            ns_startup_args_dedi.txt: +setplaylist private_match -multiple +mp_gamemode ps +setplaylistvaroverrides "custom_air_accel_pilot 9000" -enablechathooks  # startup args for this server
-#            mod.json:  # config for Northstar.CustomServers
-#                ConVars:  # the section of the file
-#                    ns_private_match_last_map: mp_glitch  # key and value of a configuration
-#                    ns_private_match_last_mode: ps
-#                    ns_disallowed_weapons: mp_weapon_r97,mp_weapon_alternator_smg,mp_weapon_car,mp_weapon_hemlok_smg,mp_weapon_lmg,mp_weapon_lstar,mp_weapon_esaw,mp_weapon_rspn101,mp_weapon_vinson,mp_weapon_hemlok,mp_weapon_g2,mp_weapon_shotgun,mp_weapon_mastiff,mp_weapon_dmr,mp_weapon_doubletake,mp_weapon_epg,mp_weapon_smr,mp_weapon_pulse_lmg,mp_weapon_softball,mp_weapon_autopistol,mp_weapon_semipistol,mp_weapon_wingman,mp_weapon_shotgun_pistol,mp_weapon_rocket_launcher,mp_weapon_arc_launcher,mp_weapon_defender,mp_weapon_mgl,mp_weapon_wingman_n,mp_weapon_rspn101_og
-#                    ns_disallowed_weapon_primary_replacement: mp_weapon_sniper
-#            autoexec_ns_server.cfg:  # config for server
-#                ns_server_name: Example Kraber9k Server  # key and value of a configuration
-#                ns_server_desc: Example Server configurated via FromWau/NorthstarManager
-#                ns_should_return_to_lobby: 1
-#                ns_private_match_only_host_can_change_settings: 2
-#                ns_player_auth_port: 8081  # IMPORTANT: EVERY RUNNING SERVER NEEDS AN UNIQUE TCP PORT AND THIS PORT NEEDS TO BE PORT-FORWARDED IN YOUR ROUTER SETTINGS
+        Mods:  # Mods for the server
+            Northstar:  # Northstar, is needed for the server
+                repository: R2Northstar/Northstar  # repo of Northstar
+                last_update: '0001-01-01T00:00:00'  # publishe date of the latest version of Northstar
+                install_dir: .  # install directory from the logger dir of the server
+                file: NorthstarLauncher.exe  # main file of the repo
+            
+            # Nice to have Server Mods:
+            PlayerVote:
+                repository: ScureX/PlayerVote
+                last_update: '0001-01-01T00:00:00'
+            AntiAFK:
+                repository: laundmo/AntiAFK
+                last_update: '0001-01-01T00:00:00'            
+            
+        Config:  # Config of the Server, configuration for servers is split up into 3 different files
+            ns_startup_args_dedi.txt: +setplaylist private_match -multiple +mp_gamemode ps +setplaylistvaroverrides "custom_air_accel_pilot 9000" -enablechathooks  # startup args for this server
+            mod.json:  # config for Northstar.CustomServers
+                ConVars:  # the section of the file
+                    ns_private_match_last_map: mp_glitch  # key and value of a configuration
+                    ns_private_match_last_mode: ps
+                    ns_disallowed_weapons: mp_weapon_r97,mp_weapon_alternator_smg,mp_weapon_car,mp_weapon_hemlok_smg,mp_weapon_lmg,mp_weapon_lstar,mp_weapon_esaw,mp_weapon_rspn101,mp_weapon_vinson,mp_weapon_hemlok,mp_weapon_g2,mp_weapon_shotgun,mp_weapon_mastiff,mp_weapon_dmr,mp_weapon_doubletake,mp_weapon_epg,mp_weapon_smr,mp_weapon_pulse_lmg,mp_weapon_softball,mp_weapon_autopistol,mp_weapon_semipistol,mp_weapon_wingman,mp_weapon_shotgun_pistol,mp_weapon_rocket_launcher,mp_weapon_arc_launcher,mp_weapon_defender,mp_weapon_mgl,mp_weapon_wingman_n,mp_weapon_rspn101_og
+                    ns_disallowed_weapon_primary_replacement: mp_weapon_sniper
+            autoexec_ns_server.cfg:  # config for server
+                ns_server_name: "[EU] Example Kraber9k Server"  # key and value of a configuration
+                ns_server_desc: Example Server configurated via FromWau/NorthstarManager
+                ns_should_return_to_lobby: 1
+                ns_private_match_only_host_can_change_settings: 2
+                ns_player_auth_port: 8081  # IMPORTANT: EVERY RUNNING SERVER NEEDS AN UNIQUE TCP PORT AND THIS PORT NEEDS TO BE PORT-FORWARDED IN YOUR ROUTER SETTINGS
 """
     conf_comments = ruamel.yaml.load(default_conf, ruamel.yaml.RoundTripLoader)
 else:
@@ -259,7 +275,8 @@ def valid_min_conf() -> bool:
     try:
         for valid_keys in valid_test.keys():
             for valid_sections in valid_test[valid_keys]:
-                if (f"{valid_sections}", f"{valid_test[valid_keys][valid_sections]}") in config.get()[valid_keys].items():
+                if (f"{valid_sections}", f"{valid_test[valid_keys][valid_sections]}") in config.get()[
+                    valid_keys].items():
                     valid_counter += 1
                     continue
                 for valid_subsection in valid_test[valid_keys][valid_sections]:
@@ -532,7 +549,8 @@ class ModUpdater:
             self.ignore_prerelease = (self.data["ignore_prerelease"].get(confuse.Optional(bool, default=True)))
             self.repository = self.data["repository"].get()
             self.install_dir = Path(serverpath / self.data["install_dir"].get(
-                confuse.Optional(str, default=f"./R2Northstar/mods/{str(self.repository).split('/')[0]}.{str(self.repository).split('/')[1]}")))
+                confuse.Optional(str,
+                                 default=f"./R2Northstar/mods/{str(self.repository).split('/')[0]}.{str(self.repository).split('/')[1]}")))
             self._file = self.data["file"].get(confuse.Optional(str, default="mod.json"))
             self.file = (self.install_dir / self._file).resolve()
             self.exclude_files = self.data["exclude_files"].get(confuse.Optional(list, default=[]))
@@ -585,15 +603,13 @@ class ModUpdater:
         if assets.totalCount == 0:  # if no application release exists try download source direct.
             return release.zipball_url
         else:
-            for asset in assets:
-                if asset.content_type in (
-                        "application/zip",
-                        "application/x-zip-compressed",
-                ):
-                    return asset.browser_download_url
+            for asset in [asset for asset in assets if asset.content_type in ["application/zip", "application/x-zip-compressed"]]:
+                return asset.browser_download_url
             raise NoValidAsset("No valid asset was found in release")
 
     def extract(self, zip_: zipfile.ZipFile):
+
+        # Servers work but have an ugly file structure
 
         # find parent folder of file (mod.json)
         namelist = zip_.namelist()
@@ -606,14 +622,14 @@ class ModUpdater:
             raise FileNotInZip()
 
         # create backup file for excluded files
-        for file in self.exclude_files:
-            if self.install_dir.joinpath(file).exists():
-                try:
-                    shutil.copy(self.install_dir.joinpath(file), self.install_dir)  # if source and destination in same folder aka for Northstar installs
-                except shutil.SameFileError:
-                    pass
-                self.install_dir.joinpath(Path(file).name).rename(self.install_dir.joinpath(f"{Path(file).name}.bak"))
-                logger.debug(f"[{'] ['.join(self.yamlpath)}] Created {self.install_dir.joinpath(f'{Path(file).name}.bak')}")
+        for file in [file for file in self.exclude_files if self.install_dir.joinpath(file).exists()]:
+            try:
+                shutil.copy(self.install_dir.joinpath(file),
+                            self.install_dir)  # if source and destination in same folder aka for Northstar installs
+            except shutil.SameFileError:
+                pass
+            self.install_dir.joinpath(Path(file).name).rename(self.install_dir.joinpath(f"{Path(file).name}.bak"))
+            logger.debug(f"[{'] ['.join(self.yamlpath)}] Created {self.install_dir.joinpath(f'{Path(file).name}.bak')}")
 
         if cwd == self.install_dir or self.install_dir.parts[0] == "Servers":
             # extract zip into install_dir
@@ -625,7 +641,8 @@ class ModUpdater:
             for file in [file for file in self.exclude_files if Path(f"{Path(file).name}.bak").exists()]:
                 newfile = self.install_dir.joinpath(file)
                 shutil.move(self.install_dir.joinpath(f"{Path(file).name}.bak"), newfile)
-                logger.debug(f"[{'] ['.join(self.yamlpath)}] Replace {newfile} with backup file {self.install_dir.joinpath(f'{Path(file).name}.bak')}")
+                logger.debug(
+                    f"[{'] ['.join(self.yamlpath)}] Replace {newfile} with backup file {self.install_dir.joinpath(f'{Path(file).name}.bak')}")
 
         else:
             # extract zip with some magic
@@ -640,7 +657,8 @@ class ModUpdater:
                         logger.debug(f"[{'] ['.join(self.yamlpath)}] Extract Downloaded zip into {self.install_dir}")
 
             # delete old files because shutil cant replace-copy
-            for replace in [r for r in self.install_dir.iterdir() if r.name != self.install_dir.joinpath(cwd.parts[0]).name]:
+            for replace in [r for r in self.install_dir.iterdir() if
+                            r.name != self.install_dir.joinpath(cwd.parts[0]).name]:
                 # filter for exclude files
                 if replace.name.endswith(".bak"):
                     continue
@@ -658,16 +676,18 @@ class ModUpdater:
                 logger.debug(f"[{'] ['.join(self.yamlpath)}] Replace {self.install_dir} with backup file {files}")
 
             # delete empty dir
-            shutil.rmtree(self.install_dir.joinpath(cwd.parent))
-            logger.debug(f"[{'] ['.join(self.yamlpath)}] Delete old dir {self.install_dir.joinpath(cwd.parent)}")
+            shutil.rmtree(self.install_dir.joinpath(cwd.parts[0]))
+            logger.debug(f"[{'] ['.join(self.yamlpath)}] Delete old dir {self.install_dir.joinpath(cwd.parts[0])}")
 
             # delete new and past old excluded file
-            for file in [file for file in self.exclude_files if self.install_dir.joinpath(f"{Path(file).name}.bak").exists()]:
+            for file in [file for file in self.exclude_files if
+                         self.install_dir.joinpath(f"{Path(file).name}.bak").exists()]:
                 newfile = self.install_dir.joinpath(file)
                 newfile.unlink()
                 logger.debug(f"[{'] ['.join(self.yamlpath)}] Delete old file {newfile}")
                 shutil.move(self.install_dir.joinpath(f"{Path(file).name}.bak"), newfile)
-                logger.debug(f"[{'] ['.join(self.yamlpath)}] Replace {newfile} with backup file {self.install_dir.joinpath(f'{Path(file).name}.bak')}")
+                logger.debug(
+                    f"[{'] ['.join(self.yamlpath)}] Replace {newfile} with backup file {self.install_dir.joinpath(f'{Path(file).name}.bak')}")
 
     def run(self):
         logger.info(f"[{'] ['.join(self.yamlpath)}] Searching for new releases...")
