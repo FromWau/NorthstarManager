@@ -44,7 +44,7 @@ sysargs = [sysargs.lower() for sysargs in sys.argv]
 showHelp = False  # print help and quit
 try:
     i = sysargs.index("-help")
-    args += " " + sys.argv.pop(i)
+    args += " " + sysargs.pop(i)
     showHelp = True
 except ValueError:
     pass
@@ -52,35 +52,35 @@ except ValueError:
 loglevel = []  # forces the logging level
 try:
     i = sysargs.index("-debug")
-    args += " " + sys.argv.pop(i)
+    args += " " + sysargs.pop(i)
     loglevel.append("DEBUG")
 except ValueError:
     pass
 
 try:
     i = sysargs.index("-info")
-    args += " " + sys.argv.pop(i)
+    args += " " + sysargs.pop(i)
     loglevel.append("INFO")
 except ValueError:
     pass
 
 try:
     i = sysargs.index("-warning")
-    args += " " + sys.argv.pop(i)
+    args += " " + sysargs.pop(i)
     loglevel.append("WARNING")
 except ValueError:
     pass
 
 try:
     i = sysargs.index("-error")
-    args += " " + sys.argv.pop(i)
+    args += " " + sysargs.pop(i)
     loglevel.append("ERROR")
 except ValueError:
     pass
 
 try:
     i = sysargs.index("-critical")
-    args += " " + sys.argv.pop(i)
+    args += " " + sysargs.pop(i)
     loglevel.append("CRITICAL")
 except ValueError:
     pass
@@ -88,7 +88,7 @@ except ValueError:
 updateAll = False  # Force updates manager then relaunches manager with args -updateAllIgnoreManager
 try:
     i = sysargs.index("-updateall")
-    args += " " + sys.argv.pop(i)
+    args += " " + sysargs.pop(i)
     updateAll = True
 except ValueError:
     pass
@@ -96,7 +96,7 @@ except ValueError:
 updateAllIgnoreManager = False  # everything in yaml configurated will get force updated
 try:
     i = sysargs.index("-updateallignoremanager")
-    args += " " + sys.argv.pop(i)
+    args += " " + sysargs.pop(i)
     updateAllIgnoreManager = True
 except ValueError:
     pass
@@ -104,7 +104,7 @@ except ValueError:
 updateServers = False  # Force updates servers, ignoring enabled flags
 try:
     i = sysargs.index("-updateservers")
-    args += " " + sys.argv.pop(i)
+    args += " " + sysargs.pop(i)
     updateServers = True
 except ValueError:
     pass
@@ -112,7 +112,7 @@ except ValueError:
 updateClient = False  # Force updates client and all the mods of the client, ignoring enabled flags
 try:
     i = sysargs.index("-updateclient")
-    args += " " + sys.argv.pop(i)
+    args += " " + sysargs.pop(i)
     updateClient = True
 except ValueError:
     pass
@@ -120,7 +120,7 @@ except ValueError:
 onlyCheckServers = False  # only runs the check for updates on the servers
 try:
     i = sysargs.index("-onlycheckservers")
-    args += " " + sys.argv.pop(i)
+    args += " " + sysargs.pop(i)
     onlyCheckServers = True
 except ValueError:
     pass
@@ -128,7 +128,7 @@ except ValueError:
 onlyCheckClient = False  # only runs the check for updates on the client
 try:
     i = sysargs.index("-onlycheckclient")
-    args += " " + sys.argv.pop(i)
+    args += " " + sysargs.pop(i)
     onlyCheckClient = True
 except ValueError:
     pass
@@ -136,7 +136,7 @@ except ValueError:
 noUpdates = False  # disables the check for updates
 try:
     i = sysargs.index("-noupdates")
-    args += " " + sys.argv.pop(i)
+    args += " " + sysargs.pop(i)
     noUpdates = True
 except ValueError:
     pass
@@ -144,7 +144,7 @@ except ValueError:
 noLaunch = False  # does not launch the client
 try:
     i = sysargs.index("-nolaunch")
-    args += " " + sys.argv.pop(i)
+    args += " " + sysargs.pop(i)
     noLaunch = True
 except ValueError:
     pass
@@ -152,7 +152,7 @@ except ValueError:
 launchServers = False  # launches all servers which are not disabled
 try:
     i = sysargs.index("-launchservers")
-    args += " " + sys.argv.pop(i)
+    args += " " + sysargs.pop(i)
     launchServers = True
 except ValueError:
     pass
@@ -557,7 +557,7 @@ class ManagerUpdater:
         pass_args += " -noLaunch" if noLaunch else ""
         pass_args += " -launchServers" if launchServers else ""
 
-        pass_args += " ".join(sys.argv[1:])
+        pass_args += " ".join(sysargs)
         script_queue.append(
             f"echo [{time.strftime('%H:%M:%S')}] [INFO   ] Running self-replacer for {self.blockname} && "
             f"timeout /t 2 /nobreak && "
@@ -1076,7 +1076,7 @@ echo Server exited with code: %errorlevel%
 # launches the defined launcher
 # =============================
 def launcher():
-    script = f'"{config["Launcher"]["filename"].get()}" {" ".join(sys.argv[1:])}'
+    script = f'"{config["Launcher"]["filename"].get()}" {" ".join(sysargs)}'
     pre_launch_origin()
     try:
         logger.info(f"[Launcher] Launching {script}")
