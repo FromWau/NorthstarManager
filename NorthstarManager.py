@@ -13,6 +13,7 @@ from pathlib import Path
 import confuse
 import psutil
 import requests
+from requests import ConnectionError
 import ruamel.yaml
 from confuse import ConfigTypeError
 from github import Github
@@ -193,9 +194,9 @@ Launcher:
 # =============================================
 Manager:
     repository: FromWau/NorthstarManager  # repo from where to search for updates. Will search at first at GitHub.com and then at northstar.thunderstore.io
-    last_update: '0001-01-01T00:00:00'  # publishe date of the latest version of the repo
-    file: NorthstarManager.exe  # main file of the repo
+    last_update: '2022-03-17T19:04:38'  # publishe date of the latest version of the repo
 #    install_dir: .  # install directory
+    file: NorthstarManager.exe  # main file of the repo
 #    ignore_updates: true  # will ignore new version and keeps the installed version
 #    ignore_prerelease: true  # will ignore pre_releases when searching for new realeses of the repo
 
@@ -205,8 +206,8 @@ Mods:
     Northstar:  # Northstar will be handled here
         repository: R2Northstar/Northstar  # repo of Northstar
         last_update: '0001-01-01T00:00:00'  # publishe date of the latest version of Northstar
-        file: NorthstarLauncher.exe  # main file of the repo        
         install_dir: .  # install directory is necessary for Northstar default is in the mods folder
+        file: NorthstarLauncher.exe  # main file of the repo 
         exclude_files:  # files that should be excluded when updating the repo
         - ns_startup_args.txt
         - ns_startup_args_dedi.txt
@@ -228,42 +229,41 @@ Mods:
 # Servers - List of all Servers that should be managed
 # ====================================================
 Servers:
-    enabled: false  # disables all listed servers for update checks, and they will not get launched
+    enabled: true  # disables all listed servers for update checks, and they will not get launched
 #
 #    How to install/ configure a server (you do not need to download or setup anything just configure what you want down below) (example for Kraber9k Server):
 #    -----------------------------------
     Kraber 9k:  # Name of the Server
 #        dir: servers/Kraber 9k  # directory where the server is located. Default is the yaml path (Servers/Servername).
-#        enabled: false  # disables this server for update checks, and the server will not get launched
+#        enabled: true  # disables this server for update checks, and the server will not get launched
         Mods:  # Mods for the server
             Northstar:  # Northstar, is needed for the server
                 repository: R2Northstar/Northstar  # repo of Northstar
                 last_update: '0001-01-01T00:00:00'  # publishe date of the latest version of Northstar
                 install_dir: .  # install directory from the logger dir of the server
                 file: NorthstarLauncher.exe  # main file of the repo
-            
             # Nice to have Server Mods:
             PlayerVote:
                 repository: ScureX/PlayerVote
                 last_update: '0001-01-01T00:00:00'
             AntiAFK:
                 repository: laundmo/AntiAFK
-                last_update: '0001-01-01T00:00:00'            
-            
+                last_update: '0001-01-01T00:00:00'
         Config:  # Config of the Server, configuration for servers is split up into 3 different files
-            ns_startup_args_dedi.txt: +setplaylist private_match -multiple +mp_gamemode ps +setplaylistvaroverrides "custom_air_accel_pilot 9000" -enablechathooks  # startup args for this server
-            mod.json:  # config for Northstar.CustomServers
-                ConVars:  # the section of the file
+            # startup args for this server
+            # list of all startup argumnets can be found on the wiki https://r2northstar.gitbook.io/r2northstar-wiki/hosting-a-server-with-northstar/dedicated-server#startup-arguments
+            # IMPORTANT: EVERY RUNNING SERVER NEEDS AN UNIQUE UDP PORT (-port xxxxx) AND THIS PORT NEEDS TO BE PORT-FORWARDED IN YOUR ROUTER SETTINGS
+            ns_startup_args_dedi.txt: +setplaylist private_match -multiple +mp_gamemode ps +setplaylistvaroverrides "custom_air_accel_pilot 9000" -enablechathooks -softwared3d11 -port 37015
+
+            # Default ConVars for Northstar.CustomServers
+            mod.json:
+                # ConVars which should be added or overriden
+                # list of all convars can be found on the wiki https://r2northstar.gitbook.io/r2northstar-wiki/hosting-a-server-with-northstar/dedicated-server#convars
+                ConVars:
                     ns_private_match_last_map: mp_glitch  # key and value of a configuration
                     ns_private_match_last_mode: ps
                     ns_disallowed_weapons: mp_weapon_r97,mp_weapon_alternator_smg,mp_weapon_car,mp_weapon_hemlok_smg,mp_weapon_lmg,mp_weapon_lstar,mp_weapon_esaw,mp_weapon_rspn101,mp_weapon_vinson,mp_weapon_hemlok,mp_weapon_g2,mp_weapon_shotgun,mp_weapon_mastiff,mp_weapon_dmr,mp_weapon_doubletake,mp_weapon_epg,mp_weapon_smr,mp_weapon_pulse_lmg,mp_weapon_softball,mp_weapon_autopistol,mp_weapon_semipistol,mp_weapon_wingman,mp_weapon_shotgun_pistol,mp_weapon_rocket_launcher,mp_weapon_arc_launcher,mp_weapon_defender,mp_weapon_mgl,mp_weapon_wingman_n,mp_weapon_rspn101_og
                     ns_disallowed_weapon_primary_replacement: mp_weapon_sniper
-            autoexec_ns_server.cfg:  # config for server
-                ns_server_name: "[EU] Example Kraber9k Server"  # key and value of a configuration
-                ns_server_desc: Example Server configurated via FromWau/NorthstarManager
-                ns_should_return_to_lobby: 1
-                ns_private_match_only_host_can_change_settings: 2
-                ns_player_auth_port: 8081  # IMPORTANT: EVERY RUNNING SERVER NEEDS AN UNIQUE TCP PORT AND THIS PORT NEEDS TO BE PORT-FORWARDED IN YOUR ROUTER SETTINGS
 """
     conf_comments = ruamel.yaml.load(default_conf, ruamel.yaml.RoundTripLoader)
 else:
@@ -1056,9 +1056,10 @@ echo Server exited with code: %errorlevel%
                 f"[{'] ['.join(yamlpath)}] Skipping Section, config is invalid or is missing subsections")
             return True
 
-        except RateLimitExceededException:
-            logger.warning(f"[{'] ['.join(yamlpath)}] GitHub rate exceeded")
-            logger.info(f"[{'] ['.join(yamlpath)}] Available requests left {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+        except (RateLimitExceededException, ConnectionError):
+            logger.warning(f"[{'] ['.join(yamlpath)}] Rate limit exceeded")
+            if len(git_token) > 0:
+                logger.info(f"[{'] ['.join(yamlpath)}] Available GitHub requests left {g.rate_limiting[0]}/{g.rate_limiting[1]}")
             if "y" != input("Wait and try update again in 60sec? (y/n) "):
                 break
             return False
