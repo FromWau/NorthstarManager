@@ -7,7 +7,7 @@ import sys
 import tempfile
 import time
 import zipfile
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 import confuse
@@ -161,7 +161,7 @@ except ValueError:
 if len(loglevel) > 0:
     logger.setLevel(logging.getLevelName(str(loglevel[0]).upper()))
 
-logger.info(f"Launched NorthstarManager with {'no args' if len(sysargs) == 0 else f'arguments: {args}'}")
+logger.info(f"Launched NorthstarManager with {'no args' if len(sysargs) == 0 else f'valid arguments: {args.strip()}'}")
 
 # =======================================================
 # Read 'manager_config.yaml' and setup configuration file
@@ -494,8 +494,7 @@ class ManagerUpdater:
                 continue
             if updateAll or \
                     not self.file.exists() or \
-                    release.published_at > self.last_update or \
-                    datetime.fromtimestamp(self.file.stat().st_mtime) < release.published_at - timedelta(minutes=10):
+                    release.published_at > self.last_update:
 
                 try:  # if asset not available contine search
                     asset = self.asset(release)
@@ -837,7 +836,7 @@ def updater() -> bool:
                         raise SectionHasNoSubSections(yamlpath)
 
                     replace_str = ""
-                    config_list = str(config[section]["arguments"].get()).strip() + " "
+                    config_list = str(config[section]["arguments"].get(confuse.Optional(str, default=""))).strip() + " "
                     c_dict = {}
                     config_value = ""
                     for c in re.split('([-+])', config_list)[1:]:
@@ -1078,7 +1077,7 @@ echo Server exited with code: %errorlevel%
 # launches the defined launcher
 # =============================
 def launcher():
-    script = f'"{config["Launcher"]["filename"].get()}" {" ".join(sysargs)}'
+    script = f'"{config["Launcher"]["filename"].get()}"{(" "+" ".join(sysargs[1::])) if len(sysargs) > 1 else ""}{" -"+loglevel[0] if len(loglevel) > 0 else ""}'
     pre_launch_origin()
     try:
         logger.info(f"[Launcher] Launching {script}")
