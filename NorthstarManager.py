@@ -557,7 +557,9 @@ class ManagerUpdater:
         pass_args += " -noLaunch" if noLaunch else ""
         pass_args += " -launchServers" if launchServers else ""
 
-        pass_args += " ".join(sysargs)
+        pass_args += f" -{loglevel[0]}" if len(loglevel) > 0 else ""
+
+        pass_args += " ".join(sys.argv[1::])
         script_queue.append(
             f"echo [{time.strftime('%H:%M:%S')}] [INFO   ] Running self-replacer for {self.blockname} && "
             f"timeout /t 2 /nobreak && "
