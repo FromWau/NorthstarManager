@@ -13,12 +13,12 @@ from pathlib import Path
 import confuse
 import psutil
 import requests
-from requests import ConnectionError
 import ruamel.yaml
 from confuse import ConfigTypeError
 from github import Github
 from github.GitRelease import GitRelease
 from github.GithubException import RateLimitExceededException, BadCredentialsException, UnknownObjectException
+from requests import ConnectionError
 from ruamel.yaml.constructor import DuplicateKeyError
 from ruamel.yaml.parser import ParserError
 from ruamel.yaml.scanner import ScannerError
@@ -598,14 +598,23 @@ class ModUpdater:
             self._file = self.data["file"].get(confuse.Optional(str, default="mod.json"))
             self.file = (self.install_dir / self._file).resolve()
             self.exclude_files = self.data["exclude_files"].get(confuse.Optional(list, default=[]))
-            try:
-                self.repo = g.get_repo(self.repository)
-                self.is_github = True
-            except UnknownObjectException:
-                self.repo = f"https://northstar.thunderstore.io/api/experimental/package/{self.repository}"
+
+            self.repo = f"https://northstar.thunderstore.io/api/experimental/package/{self.repository}"
+            if requests.get(self.repo).status_code == 200:
                 self.is_github = False
                 logger.debug(
-                    f"[{'] ['.join(self.yamlpath)}] Using Repo: https://northstar.thunderstore.io/api/experimental/package/{self.repository}")
+                    f"[{'] ['.join(self.yamlpath)}] Using Repo: northstar.thunderstore.io for {self.repository}")
+
+            else:
+                try:
+                    self.repo = g.get_repo(self.repository)
+                    self.is_github = True
+                    logger.debug(
+                        f"[{'] ['.join(self.yamlpath)}] Using Repo: GitHub for {self.repo}")
+                except UnknownObjectException:
+                    logger.error(
+                        f"[{'] ['.join(self.yamlpath)}] Could not be found in any Repo")
+
         except ConfigTypeError:
             logger.error(
                 f"[{'] ['.join(self.yamlpath)}] 'manager_config.yaml' is invalid at section: {'/'.join(yamlpath)}")
@@ -633,9 +642,9 @@ class ModUpdater:
                     or updateClient \
                     or not self.file.exists() \
                     or self._file == "NorthstarLauncher.exe" and (
-                        not self.install_dir.joinpath("R2Northstar/mods/Northstar.Client").exists() or
-                        not self.install_dir.joinpath("R2Northstar/mods/Northstar.Custom").exists() or
-                        not self.install_dir.joinpath("R2Northstar/mods/Northstar.CustomServers").exists()) \
+                    not self.install_dir.joinpath("R2Northstar/mods/Northstar.Client").exists() or
+                    not self.install_dir.joinpath("R2Northstar/mods/Northstar.Custom").exists() or
+                    not self.install_dir.joinpath("R2Northstar/mods/Northstar.CustomServers").exists()) \
                     or release.published_at > self.last_update:
                 return release
         raise NoValidRelease("Found No new releases")
@@ -648,7 +657,8 @@ class ModUpdater:
         if assets.totalCount == 0:  # if no application release exists try download source direct.
             return release.zipball_url
         else:
-            for asset in [asset for asset in assets if asset.content_type in ["application/zip", "application/x-zip-compressed"]]:
+            for asset in [asset for asset in assets if
+                          asset.content_type in ["application/zip", "application/x-zip-compressed"]]:
                 return asset.browser_download_url
             raise NoValidAsset("No valid asset was found in release")
 
@@ -745,18 +755,20 @@ class ModUpdater:
                 url = self.asset(release)
                 t = release.published_at
                 tag = release.tag_name
-            else:
-                t = datetime.fromisoformat(str(requests.get(self.repo).json()["latest"]["date_created"]).split(".")[0])
-                tag = str(requests.get(self.repo).json()["latest"]["version_number"])
 
+            else:
+                t = datetime.fromisoformat(
+                    str(requests.get(str(self.repo)).json()["latest"]["date_created"]).split(".")[0])
+                tag = str(requests.get(str(self.repo)).json()["latest"]["version_number"])
                 if updateAllIgnoreManager \
                         or updateServers \
                         or updateClient \
                         or not self.file.exists() \
                         or t > self.last_update:
-                    url = requests.get(self.repo).json()["latest"]["download_url"]
+                    url = requests.get(str(self.repo)).json()["latest"]["download_url"]
                 else:
-                    raise NoValidRelease("Found No new releases")
+                    raise NoValidRelease("no new Release found")
+
             with tempfile.NamedTemporaryFile() as download_file:
                 logger.info(f"[{'] ['.join(self.yamlpath)}] Downloading: {url}")
                 download(url, download_file)
@@ -1059,7 +1071,8 @@ echo Server exited with code: %errorlevel%
         except (RateLimitExceededException, ConnectionError):
             logger.warning(f"[{'] ['.join(yamlpath)}] Rate limit exceeded")
             if len(git_token) > 0:
-                logger.info(f"[{'] ['.join(yamlpath)}] Available GitHub requests left {g.rate_limiting[0]}/{g.rate_limiting[1]}")
+                logger.info(
+                    f"[{'] ['.join(yamlpath)}] Available GitHub requests left {g.rate_limiting[0]}/{g.rate_limiting[1]}")
             if "y" != input("Wait and try update again in 60sec? (y/n) "):
                 break
             return False
@@ -1078,7 +1091,7 @@ echo Server exited with code: %errorlevel%
 # launches the defined launcher
 # =============================
 def launcher():
-    script = f'"{config["Launcher"]["filename"].get()}"{(" "+" ".join(sysargs[1::])) if len(sysargs) > 1 else ""}{" -"+loglevel[0] if len(loglevel) > 0 else ""}'
+    script = f'"{config["Launcher"]["filename"].get()}"{(" " + " ".join(sysargs[1::])) if len(sysargs) > 1 else ""}{" -" + loglevel[0] if len(loglevel) > 0 else ""}'
     pre_launch_origin()
     try:
         logger.info(f"[Launcher] Launching {script}")
