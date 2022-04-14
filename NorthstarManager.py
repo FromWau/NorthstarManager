@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import re
 import shutil
 import subprocess
@@ -673,6 +674,21 @@ class ModUpdater:
         if not cwd:
             raise FileNotInZip()
 
+        # if updating northstar backup all mods
+        if self.repository == "R2Northstar/Northstar":
+            bakmods = cwd.joinpath("R2Northstar\mods")
+            baklst = []
+            for mods in bakmods.iterdir():
+                if mods.name.startswith("Northstar.") or mods.is_file():
+                    continue
+                baklst.append(cwd.joinpath(mods))
+
+            if not cwd.joinpath(".bakmods").exists():
+                cwd.joinpath(".bakmods").mkdir()
+
+            for mod in baklst:
+                shutil.move(cwd.joinpath(mod), cwd.joinpath(".bakmods"))
+
         # create backup file for excluded files
         for file in [file for file in self.exclude_files if self.install_dir.joinpath(file).exists()]:
             try:
@@ -741,6 +757,18 @@ class ModUpdater:
                 shutil.move(self.install_dir.joinpath(f"{Path(file).name}.bak"), newfile)
                 logger.debug(
                     f"[{'] ['.join(self.yamlpath)}] Replace {newfile} with backup file {self.install_dir.joinpath(f'{Path(file).name}.bak')}")
+
+        # if updating northstar move backup mods back to mod folder
+        if self.repository == "R2Northstar/Northstar":
+            baklst = []
+            for mod in cwd.joinpath(".bakmods").iterdir():
+                baklst.append(cwd.joinpath(mod))
+
+            for mod in baklst:
+                shutil.move(cwd.joinpath(mod), cwd.joinpath("R2Northstar\mods"))
+
+            cwd.joinpath(".bakmods").rmdir()
+
 
     def run(self):
         logger.info(f"[{'] ['.join(self.yamlpath)}] Searching for new releases...")
