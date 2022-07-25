@@ -1,4 +1,30 @@
+# Northstar Manager Files
 NorthstarManager.exe
+manager_config.yaml
+
+# Northstar Manager Build Files
 NorthstarManager.build
 NorthstarManager.dist
 NorthstarManager.onefile-build
+
+# Titanfall Files
+bin
+build.txt
+Core
+debug.log
+EAStore.ini
+gameversion.txt
+installScript.vdf
+platform
+r2
+server.dll
+steam_appid.txt
+Support
+Titanfall2.exe
+Titanfall2_trial.exe
+vpk
+__Installer
+__overlay
+
+# PyCharm
+venv

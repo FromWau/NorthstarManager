@@ -124,5 +124,9 @@ NorthstarManager.exe can be launched with following flags:
 | -launchServers | Launches all enabled servers from the Servers section in the 'manager_config.yaml' file. |
 
 # Compile it yourself
-Compiliation from py to exe is done via nuitka, but you could also use pyinstaller or something else.<br>
+Needs Visual Studio Build Tools
+winget install Microsoft.VisualStudio.2022.Community
+
+After Installing Run Visual Studio Installer and Click Modify and tick the checkbox for "Desktop development with C++". At the "Installation details" panel check "C++ Clang tools for Windows". After the install run the ./compile script.
+Compilation from py to exe is done via nuitka, but you could also use pyinstaller or something else.<br>
 The compile.ps1 runs a pip install for the required python modules and starts the nuitka compilation. The scripts takes a 1950X about ~255 seconds.    

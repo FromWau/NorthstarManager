@@ -677,6 +677,10 @@ class ModUpdater:
         # if updating northstar backup all mods
         if self.repository == "R2Northstar/Northstar":
             bakmods = cwd.joinpath("R2Northstar\mods")
+            if not bakmods.exists():
+                logger.debug(
+                    f"[{'] ['.join(self.yamlpath)}] Creating Directory {bakmods}")
+                os.makedirs("R2Northstar\mods")
             baklst = []
             for mods in bakmods.iterdir():
                 if mods.name.startswith("Northstar.") or mods.is_file():
@@ -768,7 +772,6 @@ class ModUpdater:
                 shutil.move(cwd.joinpath(mod), cwd.joinpath("R2Northstar\mods"))
 
             cwd.joinpath(".bakmods").rmdir()
-
 
     def run(self):
         logger.info(f"[{'] ['.join(self.yamlpath)}] Searching for new releases...")
